@@ -33,4 +33,5 @@ dev = [
 tn-check = "tn_check.cli:main"
 
 [tool.setuptools.packages.find]
+where = ["src"]
 include = ["tn_check*"]

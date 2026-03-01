@@ -1,17 +1,25 @@
-# Rust build artifacts
-target/
-**/target/
-# LaTeX artifacts
-*.aux
-*.out
-# Compiled binaries
-*.rlib
-*.rmeta
-*.dylib
-*.so
-*.a
-# OS junk
-.DS_Store
 # Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# LaTeX artifacts
+*.aux
+*.out
+*.log
+
+# OS junk
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Testing / Coverage
+.pytest_cache/
+.coverage
+htmlcov/

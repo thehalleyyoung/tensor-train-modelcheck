@@ -62,19 +62,28 @@ Birth-death L1 error: 0.0
 ## Architecture
 
 ```
-CME Compiler (cme/)     CSL Checker (checker/)
-  ReactionNetwork         CSL parser, bounded/unbounded until
-  → MPO generator         Fixpoint iteration, three-valued semantics
-  FSP bounds              Spectral-gap convergence prediction
-
-Time Integrators (integrator/)       TT/MPS Engine (tensor/)
-  TDVP, Krylov, Uniformization       MPS/MPO data structures
-  Euler, DMRG steady-state           SVD compression, canonical forms
-
-Error Certification (error/)     Independent Verifier (verifier/)
-  Truncation tracking              11 soundness checks
-  Clamping bounds (Prop. 1)        JSON trace serialization
-  Lemma 2: clamping reduces err   External audit capability
+src/tn_check/
+├── cme/            CME Compiler
+│   ReactionNetwork, → MPO generator, FSP bounds
+├── checker/        CSL Checker
+│   CSL parser, bounded/unbounded until, fixpoint iteration,
+│   three-valued semantics, spectral-gap convergence prediction
+├── integrator/     Time Integrators
+│   TDVP, Krylov, Uniformization, Euler, DMRG steady-state
+├── tensor/         TT/MPS Engine
+│   MPS/MPO data structures, SVD compression, canonical forms
+├── error/          Error Certification
+│   Truncation tracking, clamping bounds (Prop. 1), Lemma 2
+├── verifier/       Independent Verifier
+│   11 soundness checks, JSON trace serialization
+├── models/         Model Library (13 biological models)
+├── evaluation/     Benchmarks & PRISM comparison
+├── solver/         Dense reference solver
+├── adaptive/       Adaptive bond-dimension controller
+├── ordering/       Species ordering strategies
+├── config.py       Master configuration
+├── diagnostics.py  Marginals, moments, validation
+└── experiments.py  Reproducible experiment runners
 ```
 
 ## Testing
