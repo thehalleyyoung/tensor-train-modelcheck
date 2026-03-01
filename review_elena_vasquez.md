@@ -1,0 +1,15 @@
+# Review: TN-Check: CSL Model Checking on Tensor-Train CME
+
+**Reviewer:** Prof. Elena Vasquez (Formal Methods & Program Verification, MIT)
+**Score: 8/10**
+**Expertise Weight: 0.9** (strong alignment with model checking, temporal logic, verification algorithms)
+
+---
+
+TN-Check proposes the first implementation of CSL model-checking operators on tensor-network compressed state representations. This is a genuinely novel contribution to the model checking literature.
+
+**Strengths.** The core algorithmic contributions are well-identified and significant. Satisfaction-set algebra via rank-1 TT masks for axis-aligned propositions is an elegant observation that preserves bond dimension. The projected-rate-matrix construction in MPO form for the time-bounded until operator — zeroing absorbing states via Hadamard product with TT masks — is the key technical innovation that enables CSL operations without materializing the state space. The three-valued interval-arithmetic semantics for nested probability operators is a sound and conservative approach: classifying states near the probability threshold as "indeterminate" avoids false positives while providing certified results for clearly-above/below-threshold states. The pre-build validation gate (10+ BioModels with adversarial selection, explicit go/no-go criteria) demonstrates mature verification engineering. The complexity separation theorem (Theorem 3) providing theoretical justification for TT-based verification on modular CTMCs is the strongest theoretical contribution.
+
+**Weaknesses.** The unbounded-until fixpoint iteration in TT format is the main algorithmic risk. Each iteration inflates TT rank (Hadamard product + MPO-MPS contraction), and truncation deflates it. For slowly-mixing CTMCs with metastability, the fixpoint signal may be destroyed by aggressive truncation. The proposal acknowledges this and falls back to bounded-until with a large time bound, but this fallback changes the semantics of the verified property. The non-negativity issue with TT-SVD truncation is a genuine soundness concern: negative entries in probability vectors are physically meaningless, and post-truncation clamping breaks the contractivity argument in Theorem 1. The resolution (bounding ‖p_clamped − p_SVD‖₁ or using non-negativity-preserving rounding) is flagged as a risk, which is honest but leaves a critical gap in the soundness argument. The limitation to axis-aligned propositions (single-species predicates) excludes important biological properties like stoichiometric constraints (n_A + n_B = const).
+
+**Verdict.** An excellent contribution that bridges two mature but disjoint fields (tensor networks and model checking). The algorithmic novelty is clear, the complexity separation theorem provides theoretical justification, and the honest treatment of limitations (non-negativity, fixpoint convergence, nested CSL) builds confidence. If the pre-build validation gate passes and the non-negativity clamping bound can be made tight, this is a strong CAV/TACAS submission.

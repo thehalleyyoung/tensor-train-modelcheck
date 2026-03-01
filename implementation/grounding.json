@@ -1,0 +1,213 @@
+{
+  "project": "TN-Check: Certified CSL Model Checking via Tensor-Train Decomposition",
+  "claims": [
+    {
+      "id": "C1",
+      "claim": "Error contraction theorem: truncation errors accumulate linearly (not exponentially) due to Metzler contractivity",
+      "paper_section": "Theorem 1 (Section 4)",
+      "proof_location": "tool_paper.tex: Theorem 1 + full proof in Appendix A.1",
+      "code_evidence": [
+        "tn_check/error/propagation.py: semigroup_error_bound() — implements linear accumulation bound",
+        "tn_check/error/certification.py: ErrorCertificate.compute_total() — uses Theorem 1 structure"
+      ],
+      "test_evidence": [
+        "tests/test_checker.py::TestErrorCertification::test_error_accumulation_linear",
+        "tests/test_checker.py::TestErrorCertification::test_contraction_property",
+        "tests/test_checker.py::TestErrorCertification::test_semigroup_error_bound_metzler"
+      ],
+      "status": "grounded"
+    },
+    {
+      "id": "C2",
+      "claim": "Clamping REDUCES L1 error (Proposition 1, strengthened): ‖p_exact - p_clamped‖₁ ≤ ‖p_exact - p_SVD‖₁ ≤ ε_trunc. The bound is ε_trunc, NOT 2ε_trunc.",
+      "paper_section": "Proposition 1 (Section 4) — includes Negativity Bound Lemma and index-wise proof",
+      "proof_location": "tool_paper.tex: Proposition 1 + full proof in Appendix A.4",
+      "code_evidence": [
+        "tn_check/error/certification.py: clamping_error_bound() — returns ε_trunc",
+        "tn_check/error/certification.py: verify_clamping_proposition() — Lemma 1 numerical verification",
+        "tn_check/error/certification.py: verify_clamping_reduces_error() — Lemma 2 numerical verification",
+        "tn_check/error/certification.py: ClampingCertificate.compute_bound() — returns ε_trunc",
+        "tn_check/error/certification.py: ErrorCertificate.compute_total() — no clamping overhead"
+      ],
+      "test_evidence": [
+        "tests/test_checker.py::TestClampingBoundRigorous (10 parametrized tests)",
+        "tests/test_improvements.py::TestClampingBoundNumerical (20 parametrized tests)",
+        "tests/test_comprehensive.py::TestVerifyClampingProposition (20 parametrized tests)",
+        "tests/test_comprehensive.py::TestTightClampingBound (5 parametrized tests)"
+      ],
+      "experiment_evidence": "run_clamping_experiment(): 10/10 trials pass",
+      "status": "grounded"
+    },
+    {
+      "id": "C3",
+      "claim": "Axis-aligned predicates produce rank-1 TT masks, preserving MPO bond dimension (Theorem 2)",
+      "paper_section": "Theorem 2 (Section 4)",
+      "proof_location": "tool_paper.tex: Theorem 2 + full proof in Appendix A.2",
+      "code_evidence": [
+        "tn_check/tensor/mps.py: characteristic_mps() — rank-1 construction",
+        "tn_check/checker/satisfaction.py: compute_satisfaction_set() — rank-1 for axis-aligned",
+        "tn_check/checker/satisfaction.py: project_rate_matrix() — mask application",
+        "tn_check/tensor/algebra.py: apply_diagonal_mask_to_mpo()"
+      ],
+      "test_evidence": [
+        "tests/test_checker.py::TestSatisfactionSets::test_rank1_characteristic"
+      ],
+      "status": "grounded"
+    },
+    {
+      "id": "C4",
+      "claim": "Linear predicates have TT-rank at most R+1 where R = Σ|a_i|(M-1) via carry-based construction (Theorem 3)",
+      "paper_section": "Theorem 3 (Section 4)",
+      "proof_location": "tool_paper.tex: Theorem 3 + full proof in Appendix A.3",
+      "code_evidence": [
+        "tn_check/checker/csl_ast.py: LinearPredicate class",
+        "tn_check/checker/satisfaction.py: _compute_linear_predicate_mps() — carry-based construction"
+      ],
+      "status": "grounded"
+    },
+    {
+      "id": "C5",
+      "claim": "Independent certificate verification with 11 soundness checks, JSON-serializable traces",
+      "paper_section": "Section 5.4 (Certificate Verification)",
+      "code_evidence": [
+        "tn_check/verifier/checker.py: CertificateVerifier — 11 checks",
+        "tn_check/verifier/trace.py: VerificationTrace — JSON serialization (to_json/from_json)",
+        "tn_check/verifier/checker.py: VerificationReport — structured output"
+      ],
+      "test_evidence": [
+        "tests/test_checker.py::TestCertificateVerifier (5 tests)",
+        "tests/test_improvements.py::TestCertificateVerifierExtended (5 tests)"
+      ],
+      "experiment_evidence": "run_certificate_verification_experiment(): 11/11 SOUND",
+      "status": "grounded"
+    },
+    {
+      "id": "C6",
+      "claim": "Spectral-gap-informed convergence prediction with Rayleigh quotient refinement and adaptive bounded-until fallback",
+      "paper_section": "Section 5.3 (Spectral-Gap-Informed Convergence)",
+      "code_evidence": [
+        "tn_check/checker/spectral.py: estimate_spectral_gap() — power iteration + Rayleigh quotient",
+        "tn_check/checker/spectral.py: adaptive_fallback_time_bound() — T = C/gap",
+        "tn_check/checker/spectral.py: ConvergencePredictor — will_converge(), recommended_bond_dim()",
+        "tn_check/checker/model_checker.py: _unbounded_until() — full convergence-prediction pipeline"
+      ],
+      "test_evidence": [
+        "tests/test_improvements.py::TestSpectralGapExtended (6 tests)",
+        "tests/test_comprehensive.py::TestRayleighQuotient (1 test)"
+      ],
+      "status": "grounded"
+    },
+    {
+      "id": "C7",
+      "claim": "Full CSL model checking with three-valued semantics (TRUE/FALSE/INDETERMINATE)",
+      "paper_section": "Section 5.1 (CSL Model Checking on MPS)",
+      "code_evidence": [
+        "tn_check/checker/model_checker.py: CSLModelChecker.check()",
+        "tn_check/checker/csl_ast.py: parse_csl() — CSL parser",
+        "tn_check/checker/satisfaction.py: ThreeValued, SatisfactionResult.classify()"
+      ],
+      "test_evidence": [
+        "tests/test_checker.py::TestCSLParsing (5 tests)",
+        "tests/test_checker.py::TestThreeValuedSemantics (4 tests)"
+      ],
+      "status": "grounded"
+    },
+    {
+      "id": "C8",
+      "claim": "Birth-death exactly recovers Poisson(10) with L1 = 0.0",
+      "paper_section": "Section 6.2",
+      "experiment_evidence": "run_birth_death_experiment(): L1=0.0, mean=9.9999983",
+      "status": "grounded"
+    },
+    {
+      "id": "C9",
+      "claim": "Exponential compression growth: N=2 (6.2x) to N=10 (7.8×10^13x)",
+      "paper_section": "Section 6.3 (Table 3)",
+      "code_evidence": [
+        "tn_check/models/library.py: multi_species_cascade()",
+        "tn_check/experiments.py: run_scaling_validation_experiment()"
+      ],
+      "status": "grounded"
+    },
+    {
+      "id": "C10",
+      "claim": "Compression accuracy shows exponential convergence: L1 drops from 0.23 (chi=1) to 10^-12 (chi=10)",
+      "paper_section": "Section 6.2 (Table 2)",
+      "code_evidence": [
+        "tn_check/experiments.py: run_compression_accuracy_experiment()"
+      ],
+      "status": "grounded"
+    },
+    {
+      "id": "C11",
+      "claim": "Multi-species CSL checking on N=3 cascade; returns sound indeterminate verdict",
+      "paper_section": "Section 6.5",
+      "code_evidence": [
+        "tn_check/experiments.py: run_multi_species_csl_experiment()"
+      ],
+      "status": "grounded"
+    },
+    {
+      "id": "C12",
+      "claim": "161 automated tests all passing",
+      "test_evidence": [
+        "tests/test_checker.py: 46 tests",
+        "tests/test_improvements.py: 48 tests",
+        "tests/test_comprehensive.py: 44 tests",
+        "tests/test_benchmarks.py: 23 tests"
+      ],
+      "verification": "python3 -m pytest tests/ -q → 161 passed",
+      "status": "grounded"
+    },
+    {
+      "id": "C13",
+      "claim": "13 biological models including MAPK cascade, gene regulatory network, multi-gene expression",
+      "code_evidence": [
+        "tn_check/models/library.py: birth_death, toggle_switch, repressilator, cascade, schlogl, gene_expression, exclusive_switch, sir_epidemic, michaelis_menten_enzyme, multi_species_cascade, mapk_cascade, gene_regulatory_network, multi_gene_expression"
+      ],
+      "test_evidence": [
+        "tests/test_benchmarks.py: 23 tests covering models"
+      ],
+      "status": "grounded"
+    },
+    {
+      "id": "C14",
+      "claim": "Complexity separation theorem: TT-based verification is O(N) vs explicit O(M^N) for fixed K, M, χ",
+      "paper_section": "Theorem 4 (Section 4)",
+      "proof_location": "tool_paper.tex: Theorem 4 + full proof in Appendix A.5",
+      "status": "grounded"
+    }
+  ],
+  "critiques_addressed": [
+    {
+      "critique": "Unresolved clamping gap in SVD truncation (Yuan Cheng, Joseph S. Chang)",
+      "resolution": "Strengthened Proposition 1 proves clamping REDUCES L1 error via index-wise argument (Lemma 2). Bound is ε_trunc, NOT 2ε_trunc. Numerical verification via verify_clamping_reduces_error(). 54+ tests confirm.",
+      "claims": ["C2"],
+      "status": "resolved"
+    },
+    {
+      "critique": "Only N<=2 species tested (Yuan Cheng, Lila Zhang)",
+      "resolution": "Scaling experiments up to N=10 species. 13 biological models. Multi-species CSL checking on N=3 cascade.",
+      "claims": ["C9", "C10", "C11", "C13"],
+      "status": "resolved"
+    },
+    {
+      "critique": "No independent certificate verification (Joseph S. Chang, Lila Zhang)",
+      "resolution": "CertificateVerifier with 11 soundness checks. JSON-serializable traces for external auditing.",
+      "claims": ["C5"],
+      "status": "resolved"
+    },
+    {
+      "critique": "Fragile fixpoint iteration for slowly-mixing CTMCs (Aniruddha Sinha)",
+      "resolution": "Spectral-gap-informed convergence prediction with Rayleigh quotient refinement and adaptive bounded-until fallback.",
+      "claims": ["C6"],
+      "status": "resolved"
+    },
+    {
+      "critique": "Non-axis-aligned predicates have exponential TT rank (Lila Zhang)",
+      "resolution": "Theorem 3: linear predicates have TT-rank at most R+1 via carry-based construction. General predicates remain exponential — documented as fundamental limitation.",
+      "claims": ["C3", "C4"],
+      "status": "partially_resolved"
+    }
+  ]
+}
