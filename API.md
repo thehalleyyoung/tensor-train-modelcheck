@@ -448,7 +448,83 @@ semigroup_error_bound(per_step_errors, time_horizon, is_metzler=True) -> Propaga
 csl_error_propagation(inner_error, threshold, comparison, num_states_near_threshold=0, total_states=1) -> dict
 compose_error_certificates(*certificates) -> ErrorCertificate
 compose_fsp_tt_errors(fsp_error, per_step_truncation_errors, per_step_clamping_errors=None, threshold=None, is_metzler=True) -> dict
+frobenius_to_l1_bound(frobenius_residuals, effective_support_size, dt) -> dict
+spectral_gap_circularity_analysis(generator_dense, truncated_generator_dense=None) -> dict
+unified_error_theorem(fsp_error, per_step_truncation_errors, frobenius_residuals, dt, effective_support, threshold=0.5) -> dict
 ```
+
+#### `unified_error_theorem(fsp_error, per_step_truncation_errors, frobenius_residuals, dt, effective_support, threshold=0.5)`
+
+Implements Theorem 7: computes the unified L1 error bound combining FSP truncation, TT-SVD truncation, and TDVP projection errors. All terms accumulate linearly due to Metzler contractivity.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `fsp_error` | `float` | FSP truncation error ε_FSP |
+| `per_step_truncation_errors` | `list[float]` | Per-step TT-SVD truncation errors |
+| `frobenius_residuals` | `list[float]` | Per-step TDVP Frobenius residuals |
+| `dt` | `float` | Time step size |
+| `effective_support` | `int` | Effective support size K_eff |
+| `threshold` | `float` | CSL threshold for verdict certification (default 0.5) |
+
+**Returns:** `dict` with keys `total_certified_error`, `error_sources` (dict with `fsp_truncation`, `tt_svd_truncation`, `tdvp_projection`, `clamping`), `error_fractions`, `verdict_certified`, `verdict_margin`, `proof_sketch`.
+
+#### `frobenius_to_l1_bound(frobenius_residuals, effective_support_size, dt)`
+
+Converts TDVP Frobenius residuals to L1 probability error bound.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `frobenius_residuals` | `list[float]` | Per-step Frobenius norms of integration residuals |
+| `effective_support_size` | `int` | Number of states with non-negligible probability (K_eff) |
+| `dt` | `float` | Time step size |
+
+**Returns:** `dict` with keys `l1_bound`, `frobenius_integral`, `conversion_factor`, `effective_support_size`.
+
+#### `spectral_gap_circularity_analysis(generator_dense, truncated_generator_dense=None)`
+
+Analyzes circularity in spectral-gap-based convergence bounds by applying Weyl's theorem.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `generator_dense` | `np.ndarray` | Full generator matrix |
+| `truncated_generator_dense` | `np.ndarray` or `None` | Truncated generator (optional) |
+
+**Returns:** `dict` with keys `full_gap`, `truncated_gap`, `weyl_bound`, `gap_relative_error`, `is_gap_reliable`.
+
+---
+
+## Cumulative Error Tracking
+
+**Module:** `tn_check.error.cumulative`
+
+### `CumulativeErrorTracker`
+
+| Method | Description |
+|--------|-------------|
+| `record_step(truncation_error, clamping_error)` | Record errors from one integration step |
+| `get_certificate() -> dict` | Return cumulative error certificate |
+| `long_horizon_bias_analysis(project_to_time=None) -> dict` | Analyze long-horizon clamping bias trends |
+
+#### `long_horizon_bias_analysis(project_to_time=None)`
+
+Analyzes cumulative clamping bias for trend detection and long-horizon projections.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `project_to_time` | `float` or `None` | Target time for bias projection (default: 10× current) |
+
+**Returns:** `dict` with keys `total_clamping_bias`, `bias_rate_per_step`, `trend` (growing/stable/decaying), `projected_bias`, `safety_margin`.
+
+#### `verdict_sensitivity_analysis(csl_threshold, csl_comparison='geq')`
+
+Analyzes whether accumulated clamping bias could flip a CSL verdict. Clamping is always mass-adding (positive bias), so its effect on verdicts is asymmetric: P≥p verdicts may have false TRUE risk, while P≤p verdicts are conservative/sound.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `csl_threshold` | `float` | CSL probability threshold p |
+| `csl_comparison` | `str` | Comparison operator: `'geq'` for P≥p or `'leq'` for P≤p |
+
+**Returns:** `dict` with keys `corrected_probability`, `verdict_safe`, `bias_direction`, `margin`, `recommendation`.
 
 ---
 
@@ -523,6 +599,56 @@ gene_regulatory_network(n_genes=3, alpha=10.0, beta=1.0, hill_coeff=2.0, k_half=
 multi_gene_expression(n_genes=4, k_txn=0.5, k_tln=5.0, gamma_m=0.1, gamma_p=0.005, max_copy_mrna=15, max_copy_prot=30) -> ReactionNetwork
 ```
 
+**Module:** `tn_check.models.biomodels` (extended library)
+
+```python
+p53_mdm2_oscillator(max_copy=25) -> ReactionNetwork
+goodwin_oscillator(max_copy=20) -> ReactionNetwork
+lac_operon(max_copy=15) -> ReactionNetwork
+lotka_volterra(max_copy=30) -> ReactionNetwork
+viral_infection(max_copy=20) -> ReactionNetwork
+calcium_signaling(max_copy=20) -> ReactionNetwork
+apoptosis_network(max_copy=15) -> ReactionNetwork
+dual_phosphorylation(max_copy=20) -> ReactionNetwork
+genetic_toggle_with_inducer(max_copy=20) -> ReactionNetwork
+two_gene_oscillator(max_copy=25) -> ReactionNetwork
+branching_pathway(max_copy=20) -> ReactionNetwork
+cooperative_binding(max_copy=20) -> ReactionNetwork
+```
+
+**Module:** `tn_check.models.biomodels_extended` (broad coverage library, 26 models)
+
+Categories: metabolic networks (glycolysis, pentose phosphate, TCA cycle, fatty acid oxidation), gene regulation (autoregulatory feedback, repressilator variant, feed-forward loop, CRISPR interference, epigenetic toggle), signaling pathways (MAPK cascade, NF-κB, JAK-STAT, Wnt/β-catenin, Notch-Delta), cell cycle (cell cycle checkpoint, growth factor, stem cell niche, circadian clock), population dynamics (predator-prey-scavenger, competition, mutualism, epidemic SEIR), stochastic phenomena (stochastic focusing, bistable switch, noise-induced oscillation, bursting gene expression).
+
+```python
+glycolysis_oscillator(max_copy=25) -> ReactionNetwork
+purine_metabolism(max_copy=20) -> ReactionNetwork
+pentose_phosphate(max_copy=20) -> ReactionNetwork
+tca_cycle_minimal(max_copy=20) -> ReactionNetwork
+autoregulatory_gene(max_copy=25) -> ReactionNetwork
+feedforward_loop(max_copy=20) -> ReactionNetwork
+mutual_inhibition(max_copy=20) -> ReactionNetwork
+positive_feedback_gene(max_copy=20) -> ReactionNetwork
+incoherent_ffl(max_copy=20) -> ReactionNetwork
+egfr_signaling(max_copy=15) -> ReactionNetwork
+nfkb_signaling(max_copy=20) -> ReactionNetwork
+wnt_signaling(max_copy=20) -> ReactionNetwork
+jak_stat_signaling(max_copy=20) -> ReactionNetwork
+insulin_signaling(max_copy=20) -> ReactionNetwork
+cell_cycle_checkpoint(max_copy=20) -> ReactionNetwork
+growth_factor_response(max_copy=25) -> ReactionNetwork
+quorum_sensing(max_copy=20) -> ReactionNetwork
+stem_cell_differentiation(max_copy=20) -> ReactionNetwork
+predator_prey_3sp(max_copy=20) -> ReactionNetwork
+sir_vaccination(max_copy=20) -> ReactionNetwork
+competition_model(max_copy=25) -> ReactionNetwork
+mutualism_model(max_copy=25) -> ReactionNetwork
+stochastic_switch(max_copy=30) -> ReactionNetwork
+noise_induced_oscillation(max_copy=20) -> ReactionNetwork
+excitable_system(max_copy=25) -> ReactionNetwork
+stochastic_bursting(max_copy=25) -> ReactionNetwork
+```
+
 ---
 
 ## Dense Reference Solver
@@ -558,6 +684,88 @@ run_all_benchmarks() -> dict
 ```python
 run_prism_style_comparison(model_name="birth_death") -> dict
 compare_all_models() -> dict
+```
+
+**Module:** `tn_check.evaluation.compressibility`
+
+### Dataclasses
+
+- `EntanglementProfile`: `bipartition_index`, `von_neumann_entropy`, `renyi2_entropy`, `singular_values`, `bond_dim_for_eps`
+- `CompressibilityTheorem`: `model_name`, `num_species`, `is_product_form`, `is_weakly_coupled`, `coupling_strength`, `entanglement_profile`, `max_entanglement`, `is_area_law`, `compressibility_verdict`, `sufficient_conditions_met`, `justification`
+
+### Functions
+
+```python
+compute_entanglement_profile(state_vector, dims) -> list[EntanglementProfile]
+compressibility_theorem(model_name, network, dims, state_vector=None) -> CompressibilityTheorem
+run_compressibility_theorem_suite() -> dict
+compute_deficiency(network) -> dict
+compute_interaction_graph_bandwidth(network) -> dict
+run_deficiency_analysis() -> list[dict]
+```
+
+#### `compute_entanglement_profile(state_vector, dims)`
+
+Computes von Neumann and Rényi-2 entanglement entropies across all bipartitions of a multi-species state via SVD.
+
+#### `compressibility_theorem(model_name, network, dims, state_vector=None)`
+
+Applies sufficient conditions for bounded TT rank: deficiency-zero (strongest), product-form, weak coupling, area-law entanglement. Returns a `CompressibilityTheorem` with verdict and justification.
+
+#### `run_compressibility_theorem_suite()`
+
+Runs the compressibility theorem analysis across all 51 models in the library.
+
+#### `compute_deficiency(network)`
+
+Computes network deficiency δ = |C| - ℓ - s using Feinberg's CRNT theory. Extracts complexes, linkage classes, and stoichiometric subspace rank from the reaction graph.
+
+**Returns:** `dict` with keys `deficiency`, `num_complexes`, `num_linkage_classes`, `stoich_rank`, `is_weakly_reversible`, `is_product_form_eligible`.
+
+#### `compute_interaction_graph_bandwidth(network)`
+
+Computes interaction graph structure for TT rank bounds. Analyzes which species interact through shared reactions.
+
+**Returns:** `dict` with keys `bandwidth`, `interaction_edges`, `max_interaction_range`.
+
+#### `run_deficiency_analysis()`
+
+Runs deficiency analysis across all 51 models. Reports deficiency, weak reversibility, and product-form eligibility for each model.
+
+**Module:** `tn_check.evaluation.prism_crossvalidation`
+
+### `PrismCrossValidator`
+
+| Method | Description |
+|--------|-------------|
+| `run_full_crossvalidation() -> dict` | Run verdict-by-verdict comparison on all 10 suite models |
+| `run_single_model(model_name) -> dict` | Cross-validate a single model |
+
+### Additional Functions
+
+```python
+export_storm_benchmark(output_dir="storm_benchmarks") -> dict
+run_verdict_comparison_table() -> list[dict]
+```
+
+#### `export_storm_benchmark(output_dir)`
+
+Generates PRISM-format `.pm` model files and `.csl` property files for all benchmark models, enabling independent external validation with PRISM or Storm.
+
+#### `run_verdict_comparison_table()`
+
+Runs cross-validation and produces structured verdict-by-verdict comparison output suitable for inclusion in papers or reports.
+
+**Module:** `tn_check.integrator.convergence_analysis`
+
+### `TDVPConvergenceAnalysis` (dataclass)
+
+Key fields: `tdvp_errors`, `euler_errors`, `error_ratios`, `backward_error_constant`, `conservation_error`, `frobenius_residual`, `effective_support_size`, `l1_from_frobenius_bound`, `guarantees`.
+
+### Functions
+
+```python
+analyze_tdvp_convergence(network, max_copy=20, bond_dim=15, t_final=1.0, dt_values=None) -> TDVPConvergenceAnalysis
 ```
 
 ---

@@ -77,6 +77,11 @@ class TDVPConvergenceAnalysis:
     conservation_error: float = 0.0
     truncation_error: float = 0.0
 
+    # Frobenius-to-L1 bound (new)
+    frobenius_residual: float = 0.0
+    effective_support_size: int = 0
+    l1_from_frobenius_bound: float = 0.0
+
     # Comparison with exact evolution
     tdvp_vs_exact_error: float = 0.0
     krylov_vs_exact_error: float = 0.0
@@ -192,11 +197,16 @@ def analyze_tdvp_convergence(
             if norm > 0:
                 p_exact /= norm
 
+            # Frobenius-to-L1 bound: effective support size
+            K_eff = int(np.sum(p_exact > 1e-12))
+            analysis.effective_support_size = K_eff
+
             # Euler evolution (same bond dim)
             state_euler = initial_state.copy()
             n_steps = max(1, int(time_horizon / dt))
             dt_actual = time_horizon / n_steps
             euler_total_err = 0.0
+            frobenius_residuals = []
 
             for step in range(n_steps):
                 Qp, err = mps_zip_up(
@@ -204,6 +214,14 @@ def analyze_tdvp_convergence(
                     max_bond_dim=max_bond_dim * 2, tolerance=1e-10,
                 )
                 euler_total_err += err
+
+                # Track Frobenius residual: ‖dp/dt - Qp‖_F
+                p_cur = mps_to_dense(state_euler).ravel()
+                Qp_dense = Q_mat @ p_cur
+                Qp_tt = mps_to_dense(Qp).ravel()
+                frob_res = float(np.linalg.norm(Qp_dense - Qp_tt))
+                frobenius_residuals.append(frob_res)
+
                 dp = mps_scalar_multiply(Qp, dt_actual)
                 state_euler = mps_addition(state_euler, dp)
                 state_euler, err = mps_compress(
@@ -218,6 +236,15 @@ def analyze_tdvp_convergence(
             analysis.euler_vs_exact_error = float(
                 np.sum(np.abs(p_exact - p_euler))
             )
+
+            # Frobenius residual statistics
+            if frobenius_residuals:
+                analysis.frobenius_residual = float(np.mean(frobenius_residuals))
+                # L1 bound from Frobenius: ‖p - p̃‖₁ ≤ √(2K) · ∫‖res‖_F dt
+                total_frob = sum(r * dt_actual for r in frobenius_residuals)
+                analysis.l1_from_frobenius_bound = float(
+                    np.sqrt(2 * K_eff) * total_frob
+                )
 
             # TDVP evolution
             try:
@@ -246,6 +273,8 @@ def analyze_tdvp_convergence(
         f"‖Q - Q̃‖ ≤ {analysis.backward_error_bound:.2e}",
         "Truncation error from SVD is tracked exactly via discarded singular values",
         "2-site TDVP adaptively adjusts bond dimension within the max_bond_dim budget",
+        f"Frobenius-to-L1 bound: ‖Δp‖₁ ≤ √(2·K_eff)·∫‖res‖_F dt = "
+        f"{analysis.l1_from_frobenius_bound:.2e} (K_eff={analysis.effective_support_size})",
     ]
 
     if analysis.is_metzler:

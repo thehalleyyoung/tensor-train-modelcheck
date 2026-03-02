@@ -27,6 +27,9 @@ from tn_check.evaluation.compressibility import (
     predict_compressibility,
     validate_compressibility,
     run_compressibility_analysis,
+    compute_deficiency,
+    compute_interaction_graph_bandwidth,
+    run_deficiency_analysis,
 )
 
 __all__ = [
@@ -43,4 +46,7 @@ __all__ = [
     "predict_compressibility",
     "validate_compressibility",
     "run_compressibility_analysis",
+    "compute_deficiency",
+    "compute_interaction_graph_bandwidth",
+    "run_deficiency_analysis",
 ]

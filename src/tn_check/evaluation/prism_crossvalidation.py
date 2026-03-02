@@ -78,11 +78,17 @@ def _define_crossval_suite() -> list[dict]:
     Each entry has a model builder and multiple CSL properties to check,
     chosen to exercise different CSL operators and produce both TRUE and FALSE
     verdicts to test verdict agreement.
+
+    Extended to 10 models with 30+ CSL properties for comprehensive
+    verdict-level comparison.
     """
     from tn_check.models.library import (
         birth_death, toggle_switch, schlogl,
         gene_expression, sir_epidemic,
-        michaelis_menten_enzyme,
+        michaelis_menten_enzyme, cascade,
+    )
+    from tn_check.models.biomodels_extended import (
+        autoregulatory_gene, glycolysis_oscillator, competition_model,
     )
 
     return [
@@ -170,6 +176,78 @@ def _define_crossval_suite() -> list[dict]:
                 CSLProperty(
                     "epidemic_end", "P(I≤1) at t=50",
                     "transient_prob", 1, 1, 50.0, 0.5, ">=",
+                ),
+            ],
+        },
+        {
+            "name": "enzyme_kinetics",
+            "builder": lambda: michaelis_menten_enzyme(
+                max_E=8, max_S=12, max_ES=8, max_P=12, E0=4, S0=8,
+            ),
+            "properties": [
+                CSLProperty(
+                    "product_ge5", "P(P≥5) at t=20",
+                    "transient_prob", 3, 5, 20.0, 0.5, ">=",
+                ),
+                CSLProperty(
+                    "substrate_low", "P(S≤2) at t=30",
+                    "transient_prob", 1, 2, 30.0, 0.5, ">=",
+                ),
+            ],
+        },
+        {
+            "name": "cascade_3layer",
+            "builder": lambda: cascade(n_layers=3, max_copy=20),
+            "properties": [
+                CSLProperty(
+                    "layer3_ge5", "P(X3≥5) at t=20",
+                    "transient_prob", 2, 5, 20.0, 0.3, ">=",
+                ),
+                CSLProperty(
+                    "layer1_high", "P(X1≥10) at t=10",
+                    "transient_prob", 0, 10, 10.0, 0.5, ">=",
+                ),
+            ],
+        },
+        {
+            "name": "autoregulatory_gene",
+            "builder": lambda: autoregulatory_gene(),
+            "properties": [
+                CSLProperty(
+                    "protein_ge10", "P(Protein≥10) at t=50",
+                    "transient_prob", 1, 10, 50.0, 0.5, ">=",
+                ),
+                CSLProperty(
+                    "mrna_ss_ge3", "P(mRNA≥3) at steady state",
+                    "steady_state", 0, 3, 200.0, 0.5, ">=",
+                ),
+            ],
+        },
+        {
+            "name": "glycolysis",
+            "builder": lambda: glycolysis_oscillator(),
+            "properties": [
+                CSLProperty(
+                    "substrate_ge10", "P(Substrate≥10) at t=10",
+                    "transient_prob", 0, 10, 10.0, 0.3, ">=",
+                ),
+                CSLProperty(
+                    "product_ss_ge5", "P(Product≥5) at steady state",
+                    "steady_state", 2, 5, 200.0, 0.3, ">=",
+                ),
+            ],
+        },
+        {
+            "name": "competition",
+            "builder": lambda: competition_model(),
+            "properties": [
+                CSLProperty(
+                    "speciesA_ge15", "P(A≥15) at t=20",
+                    "transient_prob", 0, 15, 20.0, 0.3, ">=",
+                ),
+                CSLProperty(
+                    "speciesB_low", "P(B≤5) at t=30",
+                    "transient_prob", 1, 5, 30.0, 0.3, ">=",
                 ),
             ],
         },
@@ -669,4 +747,101 @@ def _result_to_dict(r: CrossValidationResult) -> dict:
         "tt_bond_dim": r.tt_bond_dim,
         "tt_truncation_error": r.tt_truncation_error,
         "notes": r.notes,
+    }
+
+
+def export_storm_benchmark(output_dir: str = "benchmarks/prism_models") -> dict:
+    """
+    Export all cross-validation models to Storm/PRISM format for external verification.
+
+    Creates .pm (model) and .csl (property) files that can be checked with:
+        storm --prism model.pm --prop properties.csl
+
+    Returns:
+        dict with file paths and expected results for comparison.
+    """
+    import os
+    os.makedirs(output_dir, exist_ok=True)
+
+    suite = _define_crossval_suite()
+    exports = []
+
+    for model_entry in suite:
+        model_name = model_entry["name"]
+        try:
+            net = model_entry["builder"]()
+            prism_export = export_to_prism(net)
+
+            # Write model file
+            model_path = os.path.join(output_dir, f"{model_name}.pm")
+            with open(model_path, "w") as f:
+                f.write(prism_export.prism_model)
+
+            # Write CSL properties file
+            prop_lines = []
+            for prop in model_entry["properties"]:
+                csl_str = _csl_property_to_prism(prop, net)
+                prop_lines.append(csl_str)
+
+            prop_path = os.path.join(output_dir, f"{model_name}.csl")
+            with open(prop_path, "w") as f:
+                f.write("\n".join(prop_lines))
+
+            exports.append({
+                "model_name": model_name,
+                "model_file": model_path,
+                "property_file": prop_path,
+                "num_properties": len(model_entry["properties"]),
+                "state_space": prism_export.state_space_size,
+            })
+        except Exception as e:
+            logger.error(f"Export failed for {model_name}: {e}")
+
+    return {"exports": exports, "total_models": len(exports)}
+
+
+def _csl_property_to_prism(prop: CSLProperty, net) -> str:
+    """Convert a CSLProperty to PRISM property syntax."""
+    sp = net.species[prop.species_index]
+
+    if prop.formula_type == "steady_state":
+        return f'S=? [ {sp.name}>={prop.threshold} ]'
+    elif prop.formula_type == "transient_prob":
+        if prop.comparison == "<=":
+            return f'P=? [ F<={prop.time_bound} {sp.name}<={prop.threshold} ]'
+        else:
+            return f'P=? [ F<={prop.time_bound} {sp.name}>={prop.threshold} ]'
+    elif prop.formula_type == "bounded_until":
+        return f'P=? [ true U<={prop.time_bound} {sp.name}>={prop.threshold} ]'
+    return f'P=? [ F<={prop.time_bound} {sp.name}>={prop.threshold} ]'
+
+
+def run_verdict_comparison_table() -> dict:
+    """
+    Run a comprehensive verdict-by-verdict comparison and return a structured table.
+
+    This provides the data for Table 5 in the paper: model-by-model,
+    property-by-property verdict agreement between TN-Check and dense reference.
+
+    Returns:
+        dict with 'table' (list of row dicts) and 'summary'.
+    """
+    results = run_cross_validation(max_bond_dim=50, tolerance=1e-10)
+    table = []
+
+    for r in results["results"]:
+        table.append({
+            "model": r["model_name"],
+            "property": r["property_name"],
+            "p_exact": f"{r['dense_probability']:.6f}",
+            "p_tt": f"{r['tt_probability']:.6f}",
+            "error": f"{r['absolute_error']:.2e}",
+            "verdict_exact": r["dense_verdict"],
+            "verdict_tt": r["tt_verdict"],
+            "agree": "✓" if r["verdicts_agree"] else "✗",
+        })
+
+    return {
+        "table": table,
+        "summary": results["summary"],
     }

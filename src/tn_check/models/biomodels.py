@@ -670,3 +670,331 @@ def dual_phosphorylation(
         ),
     ]
     return _build_network("dual_phosphorylation", species, reactions)
+
+
+def genetic_toggle_with_inducer(
+    k_prod_A: float = 10.0,
+    k_prod_B: float = 10.0,
+    k_deg: float = 0.1,
+    k_inducer_prod: float = 0.5,
+    k_inducer_deg: float = 0.1,
+    hill_coeff: float = 2.0,
+    k_half: float = 5.0,
+    max_A: int = 30,
+    max_B: int = 30,
+    max_inducer: int = 20,
+) -> ReactionNetwork:
+    """
+    Genetic toggle switch with external inducer (3 species).
+
+    Extends the Gardner toggle switch with an inducer that biases
+    the switch toward the A-high state. Tests compressibility of
+    networks with both mutual inhibition and external forcing.
+
+    Based on Gardner et al., Nature, 2000.
+    """
+    species = [
+        Species(name="A", index=0, max_copy_number=max_A, initial_count=1),
+        Species(name="B", index=1, max_copy_number=max_B, initial_count=1),
+        Species(name="Inducer", index=2, max_copy_number=max_inducer, initial_count=5),
+    ]
+    reactions = [
+        # A production repressed by B
+        Reaction(
+            name="prod_A", index=0,
+            reactant_species=[], reactant_stoichiometry=[],
+            product_species=[0], product_stoichiometry=[1],
+            propensity=HillPropensity(
+                v_max=k_prod_A, k_half=k_half, hill_coefficient=hill_coeff,
+                species_index=1, activation=False,
+            ),
+            kinetics_type=KineticsType.HILL,
+        ),
+        # B production repressed by A
+        Reaction(
+            name="prod_B", index=1,
+            reactant_species=[], reactant_stoichiometry=[],
+            product_species=[1], product_stoichiometry=[1],
+            propensity=HillPropensity(
+                v_max=k_prod_B, k_half=k_half, hill_coefficient=hill_coeff,
+                species_index=0, activation=False,
+            ),
+            kinetics_type=KineticsType.HILL,
+        ),
+        # A degradation
+        Reaction(
+            name="deg_A", index=2,
+            reactant_species=[0], reactant_stoichiometry=[1],
+            product_species=[], product_stoichiometry=[],
+            propensity=MassActionPropensity(
+                rate_constant=k_deg, reactant_species=[0], reactant_stoichiometry=[1],
+            ),
+        ),
+        # B degradation (enhanced by inducer)
+        Reaction(
+            name="deg_B", index=3,
+            reactant_species=[1, 2], reactant_stoichiometry=[1, 1],
+            product_species=[2], product_stoichiometry=[1],
+            propensity=MassActionPropensity(
+                rate_constant=k_deg * 2,
+                reactant_species=[1, 2], reactant_stoichiometry=[1, 1],
+            ),
+        ),
+        # B basal degradation
+        Reaction(
+            name="deg_B_basal", index=4,
+            reactant_species=[1], reactant_stoichiometry=[1],
+            product_species=[], product_stoichiometry=[],
+            propensity=MassActionPropensity(
+                rate_constant=k_deg, reactant_species=[1], reactant_stoichiometry=[1],
+            ),
+        ),
+        # Inducer production
+        Reaction(
+            name="inducer_prod", index=5,
+            reactant_species=[], reactant_stoichiometry=[],
+            product_species=[2], product_stoichiometry=[1],
+            propensity=MassActionPropensity(
+                rate_constant=k_inducer_prod, reactant_species=[], reactant_stoichiometry=[],
+            ),
+        ),
+        # Inducer degradation
+        Reaction(
+            name="inducer_deg", index=6,
+            reactant_species=[2], reactant_stoichiometry=[1],
+            product_species=[], product_stoichiometry=[],
+            propensity=MassActionPropensity(
+                rate_constant=k_inducer_deg, reactant_species=[2], reactant_stoichiometry=[1],
+            ),
+        ),
+    ]
+    return _build_network("genetic_toggle_inducer", species, reactions)
+
+
+def two_gene_oscillator(
+    k_prod: float = 5.0,
+    k_deg: float = 0.1,
+    k_half: float = 8.0,
+    hill_coeff: float = 3.0,
+    max_copy: int = 30,
+) -> ReactionNetwork:
+    """
+    Two-gene negative feedback oscillator.
+
+    Gene A activates Gene B; Gene B represses Gene A.
+    Simplest oscillator motif.
+
+    Based on Elowitz & Leibler, Nature, 2000.
+    """
+    species = [
+        Species(name="A", index=0, max_copy_number=max_copy, initial_count=10),
+        Species(name="B", index=1, max_copy_number=max_copy, initial_count=2),
+    ]
+    reactions = [
+        # A repressed by B
+        Reaction(
+            name="prod_A", index=0,
+            reactant_species=[], reactant_stoichiometry=[],
+            product_species=[0], product_stoichiometry=[1],
+            propensity=HillPropensity(
+                v_max=k_prod, k_half=k_half, hill_coefficient=hill_coeff,
+                species_index=1, activation=False,
+            ),
+            kinetics_type=KineticsType.HILL,
+        ),
+        # B activated by A
+        Reaction(
+            name="prod_B", index=1,
+            reactant_species=[], reactant_stoichiometry=[],
+            product_species=[1], product_stoichiometry=[1],
+            propensity=HillPropensity(
+                v_max=k_prod, k_half=k_half, hill_coefficient=hill_coeff,
+                species_index=0, activation=True,
+            ),
+            kinetics_type=KineticsType.HILL,
+        ),
+        # A degradation
+        Reaction(
+            name="deg_A", index=2,
+            reactant_species=[0], reactant_stoichiometry=[1],
+            product_species=[], product_stoichiometry=[],
+            propensity=MassActionPropensity(
+                rate_constant=k_deg, reactant_species=[0], reactant_stoichiometry=[1],
+            ),
+        ),
+        # B degradation
+        Reaction(
+            name="deg_B", index=3,
+            reactant_species=[1], reactant_stoichiometry=[1],
+            product_species=[], product_stoichiometry=[],
+            propensity=MassActionPropensity(
+                rate_constant=k_deg, reactant_species=[1], reactant_stoichiometry=[1],
+            ),
+        ),
+    ]
+    return _build_network("two_gene_oscillator", species, reactions)
+
+
+def branching_pathway(
+    k_branch1: float = 0.5,
+    k_branch2: float = 0.3,
+    k_deg: float = 0.1,
+    k_input: float = 1.0,
+    max_input: int = 20,
+    max_out1: int = 25,
+    max_out2: int = 25,
+) -> ReactionNetwork:
+    """
+    Branching signaling pathway (3 species).
+
+    A single input species is processed by two competing pathways,
+    producing two output species. Tests compressibility of competitive
+    branching networks.
+    """
+    species = [
+        Species(name="Input", index=0, max_copy_number=max_input, initial_count=10),
+        Species(name="Out1", index=1, max_copy_number=max_out1, initial_count=0),
+        Species(name="Out2", index=2, max_copy_number=max_out2, initial_count=0),
+    ]
+    reactions = [
+        # Input production
+        Reaction(
+            name="input_prod", index=0,
+            reactant_species=[], reactant_stoichiometry=[],
+            product_species=[0], product_stoichiometry=[1],
+            propensity=MassActionPropensity(
+                rate_constant=k_input, reactant_species=[], reactant_stoichiometry=[],
+            ),
+        ),
+        # Branch 1: Input → Out1
+        Reaction(
+            name="branch1", index=1,
+            reactant_species=[0], reactant_stoichiometry=[1],
+            product_species=[1], product_stoichiometry=[1],
+            propensity=MassActionPropensity(
+                rate_constant=k_branch1, reactant_species=[0], reactant_stoichiometry=[1],
+            ),
+        ),
+        # Branch 2: Input → Out2
+        Reaction(
+            name="branch2", index=2,
+            reactant_species=[0], reactant_stoichiometry=[1],
+            product_species=[2], product_stoichiometry=[1],
+            propensity=MassActionPropensity(
+                rate_constant=k_branch2, reactant_species=[0], reactant_stoichiometry=[1],
+            ),
+        ),
+        # Out1 degradation
+        Reaction(
+            name="deg_out1", index=3,
+            reactant_species=[1], reactant_stoichiometry=[1],
+            product_species=[], product_stoichiometry=[],
+            propensity=MassActionPropensity(
+                rate_constant=k_deg, reactant_species=[1], reactant_stoichiometry=[1],
+            ),
+        ),
+        # Out2 degradation
+        Reaction(
+            name="deg_out2", index=4,
+            reactant_species=[2], reactant_stoichiometry=[1],
+            product_species=[], product_stoichiometry=[],
+            propensity=MassActionPropensity(
+                rate_constant=k_deg, reactant_species=[2], reactant_stoichiometry=[1],
+            ),
+        ),
+    ]
+    return _build_network("branching_pathway", species, reactions)
+
+
+def cooperative_binding(
+    k_bind: float = 0.01,
+    k_unbind: float = 0.1,
+    k_coop_bind: float = 0.05,
+    k_prod: float = 5.0,
+    k_deg: float = 0.1,
+    max_free: int = 20,
+    max_bound: int = 10,
+    max_product: int = 30,
+) -> ReactionNetwork:
+    """
+    Cooperative binding model (3 species).
+
+    Transcription factor binds cooperatively to a promoter,
+    producing a product at enhanced rate when bound.
+
+    Models ultrasensitive gene regulation via cooperative binding.
+    """
+    species = [
+        Species(name="TF_free", index=0, max_copy_number=max_free, initial_count=10),
+        Species(name="TF_bound", index=1, max_copy_number=max_bound, initial_count=0),
+        Species(name="Product", index=2, max_copy_number=max_product, initial_count=0),
+    ]
+    reactions = [
+        # TF binding (mass action)
+        Reaction(
+            name="bind", index=0,
+            reactant_species=[0], reactant_stoichiometry=[1],
+            product_species=[1], product_stoichiometry=[1],
+            propensity=MassActionPropensity(
+                rate_constant=k_bind, reactant_species=[0], reactant_stoichiometry=[1],
+            ),
+        ),
+        # TF unbinding
+        Reaction(
+            name="unbind", index=1,
+            reactant_species=[1], reactant_stoichiometry=[1],
+            product_species=[0], product_stoichiometry=[1],
+            propensity=MassActionPropensity(
+                rate_constant=k_unbind, reactant_species=[1], reactant_stoichiometry=[1],
+            ),
+        ),
+        # Cooperative binding (second TF binds faster)
+        Reaction(
+            name="coop_bind", index=2,
+            reactant_species=[0, 1], reactant_stoichiometry=[1, 1],
+            product_species=[1], product_stoichiometry=[2],
+            propensity=MassActionPropensity(
+                rate_constant=k_coop_bind,
+                reactant_species=[0, 1], reactant_stoichiometry=[1, 1],
+            ),
+        ),
+        # Product production (enhanced by bound TF)
+        Reaction(
+            name="prod", index=3,
+            reactant_species=[], reactant_stoichiometry=[],
+            product_species=[2], product_stoichiometry=[1],
+            propensity=HillPropensity(
+                v_max=k_prod, k_half=3.0, hill_coefficient=2.0,
+                species_index=1, activation=True,
+            ),
+            kinetics_type=KineticsType.HILL,
+        ),
+        # Product degradation
+        Reaction(
+            name="deg_prod", index=4,
+            reactant_species=[2], reactant_stoichiometry=[1],
+            product_species=[], product_stoichiometry=[],
+            propensity=MassActionPropensity(
+                rate_constant=k_deg, reactant_species=[2], reactant_stoichiometry=[1],
+            ),
+        ),
+        # TF production
+        Reaction(
+            name="tf_prod", index=5,
+            reactant_species=[], reactant_stoichiometry=[],
+            product_species=[0], product_stoichiometry=[1],
+            propensity=MassActionPropensity(
+                rate_constant=0.5, reactant_species=[], reactant_stoichiometry=[],
+            ),
+        ),
+        # TF degradation
+        Reaction(
+            name="tf_deg", index=6,
+            reactant_species=[0], reactant_stoichiometry=[1],
+            product_species=[], product_stoichiometry=[],
+            propensity=MassActionPropensity(
+                rate_constant=0.05, reactant_species=[0], reactant_stoichiometry=[1],
+            ),
+        ),
+    ]
+    return _build_network("cooperative_binding", species, reactions)

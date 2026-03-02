@@ -229,6 +229,133 @@ class CumulativeErrorTracker:
         else:
             return self._cumulative_trunc * (1 + len(self._records) * 0.01)
 
+    def long_horizon_bias_analysis(self) -> dict:
+        """
+        Analyze systematic clamping bias over long time horizons.
+
+        Clamping always adds probability mass (negative → zero), creating
+        systematic positive bias. This analysis quantifies:
+        1. Rate of bias accumulation per step
+        2. Projected total bias at arbitrary horizons
+        3. Effect on CSL probability thresholds
+
+        Returns:
+            Dictionary with bias rate, projections, and threshold impact.
+        """
+        if not self._records:
+            return {"status": "no_data"}
+
+        neg_masses = [r.negativity_mass for r in self._records]
+        times = [r.time for r in self._records]
+
+        # Compute bias rate (negativity mass per unit time)
+        if times[-1] > 0:
+            bias_rate = self._cumulative_neg / times[-1]
+        else:
+            bias_rate = 0.0
+
+        # Detect if bias is growing, constant, or decaying
+        if len(neg_masses) >= 4:
+            q1 = np.mean(neg_masses[:len(neg_masses)//4])
+            q4 = np.mean(neg_masses[3*len(neg_masses)//4:])
+            if q1 > 1e-15:
+                growth_ratio = q4 / q1
+            else:
+                growth_ratio = 1.0
+
+            if growth_ratio > 2.0:
+                trend = "growing"
+            elif growth_ratio < 0.5:
+                trend = "decaying"
+            else:
+                trend = "stable"
+        else:
+            growth_ratio = 1.0
+            trend = "unknown"
+
+        # Threshold impact: if p_computed is within bias of threshold,
+        # the bias could flip a verdict
+        max_per_step_neg = max(neg_masses) if neg_masses else 0.0
+
+        return {
+            "total_bias": self._cumulative_neg,
+            "bias_rate_per_unit_time": bias_rate,
+            "mean_per_step_bias": float(np.mean(neg_masses)) if neg_masses else 0.0,
+            "max_per_step_bias": max_per_step_neg,
+            "bias_trend": trend,
+            "growth_ratio_q4_over_q1": growth_ratio,
+            "bias_direction": "positive (mass added by clamping)",
+            "projected_bias_at_100": bias_rate * 100,
+            "projected_bias_at_1000": bias_rate * 1000,
+            "threshold_safety_margin": (
+                "A CSL verdict P≥p[ψ] is safe if the computed probability "
+                f"exceeds the threshold by at least {self._cumulative_neg:.2e} "
+                "(the total clamping bias)."
+            ),
+            "recommendation": (
+                "Increase bond dimension to reduce truncation error"
+                if bias_rate > 1e-4 else
+                "Clamping bias is negligible for practical thresholds"
+            ),
+        }
+
+    def verdict_sensitivity_analysis(
+        self,
+        csl_probability: float,
+        threshold: float,
+        comparison: str = ">=",
+    ) -> dict:
+        """
+        Check whether clamping bias could flip a CSL verdict.
+
+        Clamping adds probability mass (positive bias), so it can only
+        push P(φ) higher. This means:
+        - For P≥p[ψ]: clamping bias favors TRUE → false TRUE possible
+        - For P≤p[ψ]: clamping bias opposes TRUE → conservative (sound)
+
+        Args:
+            csl_probability: Computed probability P(φ).
+            threshold: CSL threshold p.
+            comparison: Comparison operator.
+
+        Returns:
+            dict with verdict_safe, bias_impact, and corrected_probability.
+        """
+        total_bias = self._cumulative_neg
+        total_error = self._cumulative_trunc
+
+        if comparison in (">=", ">"):
+            # Bias pushes P higher → could cause false TRUE
+            corrected_prob = max(0, csl_probability - total_bias)
+            verdict_original = csl_probability >= threshold
+            verdict_corrected = corrected_prob >= threshold
+            could_flip = verdict_original and not verdict_corrected
+        else:
+            # Bias pushes P higher → makes P≤p harder to satisfy (conservative)
+            corrected_prob = min(1.0, csl_probability + total_bias)
+            verdict_original = csl_probability <= threshold
+            verdict_corrected = corrected_prob <= threshold
+            could_flip = verdict_original and not verdict_corrected
+
+        return {
+            "csl_probability": csl_probability,
+            "threshold": threshold,
+            "total_clamping_bias": total_bias,
+            "total_error_bound": total_error,
+            "corrected_probability": corrected_prob,
+            "verdict_safe": not could_flip,
+            "could_flip_verdict": could_flip,
+            "bias_fraction_of_margin": (
+                total_bias / max(abs(csl_probability - threshold), 1e-15)
+            ),
+            "recommendation": (
+                "SAFE: clamping bias does not affect verdict"
+                if not could_flip else
+                "WARNING: clamping bias could affect verdict; "
+                "increase bond dimension or report INDETERMINATE"
+            ),
+        }
+
 
 def run_cumulative_error_experiment(
     model_name: str = "birth_death",

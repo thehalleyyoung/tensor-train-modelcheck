@@ -1,5 +1,5 @@
 {
   "category": "B",
-  "key_quote": "The TT rank assumptions need deeper theoretical characterization — conditions under which low rank is guaranteed are unclear.",
-  "rationale": "This project already scores 7.33/10 overall with highest novelty (7.67) and rigor (7.67). Reviewers recommend Accept. The remaining gaps are about depth: TT rank characterization, PRISM comparison, spectral gap robustness, and testing on non-standard biological models. These are addressable completeness issues, not novelty concerns."
+  "key_quote": "the absence of sufficient conditions guaranteeing low TT rank... the tool provides formal verification conditional on an unverified assumption",
+  "rationale": "All reviewers find the Metzler semigroup error contraction, three-valued semantics, and O(N) complexity separation genuinely novel. The critiques focus on execution depth: missing compressibility theorem, unanalyzed TDVP convergence for non-Hermitian operators, no PRISM/Storm verdict comparison, and inadequate clamping bias analysis — all depth/rigor issues."
 }

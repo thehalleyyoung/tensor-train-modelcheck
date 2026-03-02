@@ -1,271 +1,168 @@
 {
-  "project": "TN-Check",
-  "project_summary": "CSL model checking on tensor-train compressed chemical master equation probability vectors for large-scale stochastic reaction networks",
-  "review_date": "2026-03-02",
-  "num_reviewers": 3,
+  "project": "csl-model-checking-on-tensor-train-cme",
+  "title": "TN-Check: CSL Model Checking on Tensor-Train CME",
+  "date": "2025-07-15",
   "reviewers": [
     {
       "name": "Cesar Sanchez",
+      "persona": "formal_verification_AI_researcher",
       "affiliation": "IMDEA Software Institute",
-      "persona": "formal_verification_AI_researcher"
+      "recommendation": "accept",
+      "overall_score": "7/10",
+      "confidence": "4/5"
     },
     {
       "name": "Roderick Bloem",
+      "persona": "machine_learning_specification_safety_researcher",
       "affiliation": "Graz University of Technology",
-      "persona": "machine_learning_specification_safety_researcher"
+      "recommendation": "weak_accept",
+      "overall_score": "6/10",
+      "confidence": "3/5"
     },
     {
       "name": "Vasco Vasconcelos",
+      "persona": "probabilistic_models_and_formal_methods_expert",
       "affiliation": "University of Lisbon",
-      "persona": "probabilistic_models_and_formal_methods_expert"
+      "recommendation": "accept",
+      "overall_score": "7/10",
+      "confidence": "5/5"
     }
   ],
-  "aggregate_scores": {
-    "novelty": 7.7,
-    "rigor": 6.3,
-    "empirical_strength": 5.7,
-    "presentation": 7.0,
-    "reproducibility": 7.0,
-    "overall": 6.7
-  },
-  "consensus_strengths": [
-    "The error contraction theorem exploiting Metzler structure provides much tighter error bounds than generic matrix exponential analysis, exploiting the stochastic/sub-stochastic nature of e^{Qt}.",
-    "The O(N) complexity separation for modular CTMCs establishes a formal complexity advantage over explicit methods, not just empirical speedup.",
-    "The three-valued CSL semantics with interval arithmetic is the right design choice for sound verification under compression error, correctly propagating uncertainty through Boolean and probabilistic operators.",
-    "The CME-to-MPO compiler with SBML import bridges biological modeling and formal verification communities, supporting mass-action, Hill, and Michaelis-Menten kinetics."
-  ],
-  "consensus_weaknesses": [
-    "Tensor-train compressibility of CME distributions is an empirical observation, not a theorem. No sufficient conditions for low-rank structure are provided, and the approach could fail unpredictably on new models.",
-    "TDVP and DMRG adaptations for non-Hermitian CME generators lack rigorous convergence analysis. The variational principle underlying these methods does not apply to non-Hermitian operators.",
-    "Comparison with PRISM and Storm is limited to scalability — verdict-by-verdict agreement on overlapping tractable models is needed to establish correctness.",
-    "The post-truncation clamping of negative entries introduces systematic bias that may accumulate over many time steps without cumulative error tracking.",
-    "The fixpoint iteration for unbounded-until properties lacks convergence guarantees for slowly-mixing CTMCs, with the fallback to bounded-until being a heuristic."
-  ],
-  "individual_recommendations": [
-    {
-      "reviewer": "Cesar Sanchez",
-      "recommendation": "accept"
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "recommendation": "weak_accept"
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "recommendation": "accept"
-    }
-  ],
-  "synthesized_verdict": "TN-Check presents a comprehensive and technically sophisticated system that bridges tensor-network numerics from quantum physics with CSL model checking for biological systems. The error contraction theorem, three-valued semantics, and O(N) complexity separation are genuine theoretical contributions. The potential to extend verified probabilistic analysis from ~25 to 50–100+ species is exciting. However, the fundamental reliance on unproven compressibility, the non-Hermitian adaptations without rigorous convergence analysis, and the limited correctness validation against established tools are significant concerns. The overall assessment is weak-accept-to-accept: the approach is novel and promising, but needs formal compressibility conditions, TDVP convergence analysis, and systematic cross-validation with PRISM/Storm.",
-  "all_strengths": [
-    {
-      "reviewer": "Cesar Sanchez",
-      "point": "The core insight — that CME generators decompose as sums of Kronecker products structurally identical to quantum many-body Hamiltonians — is not new but applying it to formal CSL model checking is genuinely novel. Previous tensor-network work in chemistry focused on simulation; this paper closes the gap to formal verification by implementing CSL operators natively on TT representations."
-    },
-    {
-      "reviewer": "Cesar Sanchez",
-      "point": "The error contraction theorem exploiting Metzler structure is a clean and important result. The key observation that e^{Qt} preserves non-negativity and is sub-stochastic (after FSP truncation) means truncation errors don't amplify through time evolution — a much tighter bound than generic matrix exponential error analysis would yield."
-    },
-    {
-      "reviewer": "Cesar Sanchez",
-      "point": "The three-valued CSL semantics with interval arithmetic is the right design choice. Rather than forcing binary verdicts on uncertain probabilities, returning {TRUE, FALSE, INDETERMINATE} correctly handles the fundamental tension between compression error and verification precision. This is sound by construction."
-    },
-    {
-      "reviewer": "Cesar Sanchez",
-      "point": "The axis-aligned predicate theorem (rank-1 TT masks preserving MPO bond dimension) and the carry-based linear predicate construction are elegant technical contributions that make CSL checking on TT representations practical rather than merely theoretically possible."
-    },
-    {
-      "reviewer": "Cesar Sanchez",
-      "point": "The 11-check independent verifier with JSON trace serialization demonstrates a commitment to auditability. The separation between the computational engine and the verification kernel follows best practices in certified tool design."
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "point": "The scalability potential is dramatic. The 7.8×10¹³× compression ratio at N=10 species demonstrates that the approach can represent probability distributions over state spaces far beyond explicit methods. If the compression remains effective at N=50–100 (the paper's target), this would open entirely new classes of biological systems to formal verification."
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "point": "The CME-to-MPO compiler handling mass-action, Hill, and Michaelis-Menten kinetics with SBML import provides a practical entry point for biologists who already use standard modeling formats. This bridges the gap between the biological modeling community and formal verification tools."
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "point": "The adaptive bond-dimension controller using greedy-doubling is a pragmatic engineering choice that avoids the need for manual bond dimension tuning. Automatic adaptation to the problem's intrinsic complexity makes the tool more accessible to non-experts."
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "point": "The pre-build validation gate (>60% of adversarial BioModels achieving χ ≤ 200 at ε=10⁻⁴) is an excellent quality assurance mechanism. Requiring the tool to pass empirical validation before claiming full scope prevents overpromising."
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "point": "The connection between tensor-network methods and CSL model checking is a genuine contribution to the model checking community, which has largely not adopted these numerical techniques from quantum physics."
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "point": "The error contraction theorem exploiting Metzler structure (Theorem 1) is the paper's strongest theoretical contribution. The proof that e^{Qt} being stochastic/sub-stochastic means truncation errors contract under time evolution is elegant and provides much tighter bounds than generic matrix exponential error analysis. This is a genuine advance in the numerical analysis of compressed Markov chain representations."
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "point": "The O(N) complexity separation (Theorem 4) between TT-based and explicit verification for modular CTMCs is a strong theoretical result. The proof that Kronecker-structured CME generators admit efficient TT operations establishes a formal complexity advantage, not just an empirical speedup."
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "point": "The three-valued CSL semantics is mathematically well-founded. The interval-arithmetic approach correctly propagates uncertainty through Boolean and probabilistic operators, producing sound verdicts even when compression introduces numerical error. This is the right approach for certified probabilistic model checking."
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "point": "The carry-based TT construction for linear predicates (Theorem 3, bond dimension ≤ R+1) is a clever technique that enables efficient evaluation of weighted sums over molecular species populations, which are common in biological property specifications."
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "point": "The birth-death validation achieving L1 error 0.0 (exact Poisson recovery) and the gene expression accuracy of L1 = 1.62×10⁻¹² provide strong evidence that the numerical implementation is correct for well-understood test cases."
-    }
-  ],
-  "all_weaknesses": [
-    {
-      "reviewer": "Cesar Sanchez",
-      "point": "The compressibility hypothesis is the elephant in the room: the entire approach assumes CME probability distributions have low tensor-train rank. This is an empirical observation, not a theorem. The paper provides no sufficient conditions under which biological reaction networks produce low-rank distributions. Without this, the approach could fail unpredictably on new models."
-    },
-    {
-      "reviewer": "Cesar Sanchez",
-      "point": "The TDVP adaptation for non-Hermitian CME generators is stated but not rigorously justified. TDVP was developed for Hermitian Hamiltonians in quantum physics; the non-Hermitian setting introduces subtleties (non-unitary time evolution, non-orthogonal tangent spaces) that are mentioned but not formally analyzed. The error bounds for TDVP in the non-Hermitian case are weaker than the paper suggests."
-    },
-    {
-      "reviewer": "Cesar Sanchez",
-      "point": "The benchmark suite consists of 13 biological models, but the paper does not compare against PRISM or Storm on the same models. Without direct comparison of verification results (not just scalability), it is impossible to assess correctness on real biological models. The birth-death and gene expression validations are necessary but not sufficient."
-    },
-    {
-      "reviewer": "Cesar Sanchez",
-      "point": "The fixpoint iteration for unbounded-until properties lacks convergence guarantees for slowly-mixing CTMCs. The fallback to bounded-until with large time bounds is a heuristic that undermines the formal verification claims. The paper should characterize when fixpoint iteration converges and when the fallback is needed."
-    },
-    {
-      "reviewer": "Cesar Sanchez",
-      "point": "The post-truncation clamping of negative entries introduces a systematic bias toward non-negativity. While the error bound is correct (≤ ε_trunc), repeated clamping across many time steps could accumulate bias that is not tracked by the per-step bounds. A cumulative bias analysis is needed."
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "point": "The paper does not compare verification results against established model checkers (PRISM, Storm, STAMINA) on the same models. Scalability claims are meaningless if the verification results are incorrect. At minimum, the paper should verify that TN-Check and PRISM agree on all CSL properties for small-enough models where both tools can run."
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "point": "The supported CSL fragment and its limitations are not clearly delineated. Which CSL operators are fully supported with error bounds, which are partially supported, and which are unsupported? The nested CSL case with three-valued semantics is particularly unclear regarding practical utility."
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "point": "The non-Hermitian TDVP adaptation is a significant technical concern. TDVP convergence proofs rely on the variational principle for Hermitian operators, which does not apply to CME generators. The paper cites Ceruti-Lubich-Walach (2024) but does not verify that their analysis covers the specific class of non-Hermitian operators arising in CME."
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "point": "The clamping strategy for negative probabilities is a necessary hack that introduces systematic error. The paper proves per-step bounds but does not analyze cumulative error over many time steps. For time-bounded CSL properties requiring many integration steps, cumulative clamping error could dominate."
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "point": "The 13-model benchmark library is small relative to the thousands of models in the BioModels database. The paper should demonstrate the tool on a broader sample to establish generality."
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "point": "The fundamental limitation — that tensor-train compressibility of CME distributions is an empirical observation rather than a proven property — is acknowledged but insufficiently analyzed. The paper should provide at least heuristic arguments for when low-rank structure is expected (e.g., weakly coupled subsystems, product-form steady states) and when it is not (highly entangled multimodal distributions)."
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "point": "The FSP truncation interaction with tensor-train compression is not formally analyzed. FSP bounds the state space to a finite region, but the truncation boundary choice affects both accuracy and compressibility. The paper uses standard FSP bounds from Munsky and Khammash (2006) but does not analyze how FSP error compounds with TT truncation error."
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "point": "The steady-state solver based on DMRG is presented without convergence guarantees for non-Hermitian operators. DMRG convergence theory relies on the variational principle (energy minimization for ground states), which does not apply to the dominant eigenvector of a non-Hermitian generator. The solver may converge to a non-physical solution without detection."
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "point": "The paper does not address time-varying reaction rates, which are common in biological systems with external signals, circadian rhythms, or pharmacokinetic forcing. Extending the framework to time-inhomogeneous CTMCs would require time-dependent MPOs, which adds both theoretical and computational complexity."
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "point": "The comparison with PRISM and Storm is limited to scalability curves rather than verification accuracy. For the overlapping tractable range (small N), the paper should report verdict-by-verdict agreement with these established tools to build confidence in correctness."
-    }
-  ],
-  "all_questions_for_authors": [
-    {
-      "reviewer": "Cesar Sanchez",
-      "question": "Under what conditions on the reaction network structure do CME distributions have provably low tensor-train rank? Are there known classes of networks (e.g., weakly coupled, modular) where area-law-like bounds apply?"
-    },
-    {
-      "reviewer": "Cesar Sanchez",
-      "question": "How does the approach handle multi-scale stiffness (fast and slow reactions)? Stiff systems may require very high bond dimensions to represent transient states, even if the steady-state is low-rank."
-    },
-    {
-      "reviewer": "Cesar Sanchez",
-      "question": "What is the computational overhead of the 11-check verifier relative to the model-checking computation? If verification is expensive, it may not be practical for iterative analysis workflows."
-    },
-    {
-      "reviewer": "Cesar Sanchez",
-      "question": "For nested CSL formulas, how large is the INDETERMINATE region in practice? If most states are classified as INDETERMINATE, the three-valued result is uninformative."
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "question": "Have you validated TN-Check's CSL verification results against PRISM or Storm on small models (N ≤ 5)? How many CSL properties have been cross-validated?"
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "question": "What is the typical bond dimension required for MAPK cascade models (N=22)? Does the adaptive controller converge, and what is the final compression ratio?"
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "question": "How does the approach handle reactions with stoichiometry >1 (e.g., 2A → B)? Do these create higher-rank MPO terms that degrade compression?"
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "question": "Can the three-valued semantics be refined iteratively by increasing bond dimension in the INDETERMINATE region? This would provide a natural CEGAR-like loop for precision refinement."
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "question": "Can you provide sufficient conditions on the reaction network topology that guarantee low tensor-train rank of the CME solution? For example, do tree-structured networks always produce low-rank distributions?"
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "question": "How does the approach handle multimodal distributions (e.g., bistable gene switches)? Bimodal probability distributions in high dimensions may require high bond dimensions to represent accurately."
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "question": "What is the relationship between the FSP truncation error and the TT truncation error? Can these be jointly optimized, or must they be controlled independently?"
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "question": "For the Uniformization-based bounded-until checking, what is the effective condition number of the uniformized matrix? Poor conditioning could amplify TT truncation errors."
-    }
-  ],
-  "all_missing_references": [
-    {
-      "reviewer": "Cesar Sanchez",
-      "reference": "Kwiatkowska, Norman, and Parker (2007) — 'Stochastic model checking' (SFM). Foundational reference for CSL model checking that should frame the contribution."
-    },
-    {
-      "reviewer": "Cesar Sanchez",
-      "reference": "Kazeev and Schwab (2018) — 'Quantized tensor-structured finite elements' (Computer Methods in Applied Mechanics and Engineering). Key reference for tensor-train methods in PDE discretization."
-    },
-    {
-      "reviewer": "Cesar Sanchez",
-      "reference": "Hegland, Burden, Santoso, MacNamara, and Booth (2007) — 'A solver for the stochastic master equation applied to gene regulatory networks' (Journal of Computational and Applied Mathematics). Early tensor-based CME solver."
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "reference": "Henzinger, Mateescu, and Wolf (2011) — 'Sliding window abstraction for infinite Markov chains' (CAV). Relevant abstraction technique for infinite-state CTMC verification."
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "reference": "Dehnert, Junges, Katoen, and Volk (2017) — 'A Storm is Coming: A Modern Probabilistic Model Checker' (CAV). The primary competing tool for CSL model checking."
-    },
-    {
-      "reviewer": "Roderick Bloem",
-      "reference": "Dolgov and Savostyanov (2014) — 'Alternating minimal energy methods for linear systems in higher dimensions' (SIAM Journal on Scientific Computing). Relevant TT-based linear algebra method."
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "reference": "Munsky and Khammash (2006) — 'The finite state projection algorithm for the solution of the chemical master equation' (Journal of Chemical Physics). Foundational FSP reference that should be more prominently discussed."
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "reference": "Jahnke and Huisinga (2007) — 'Solving the chemical master equation for monomolecular reaction systems analytically' (Journal of Mathematical Biology). Analytical solutions for validation."
-    },
-    {
-      "reviewer": "Vasco Vasconcelos",
-      "reference": "Schollwöck (2011) — 'The density-matrix renormalization group in the age of matrix product states' (Annals of Physics). Comprehensive MPS/DMRG reference that should underpin the tensor-network methodology."
-    }
-  ]
+  "consensus_recommendation": "Accept",
+  "synthesis": {
+    "summary": "TN-Check introduces certified CSL model checking on tensor-train compressed CME probability vectors, enabling verification of stochastic reaction networks with 50-100+ molecular species whose M^N state spaces are intractable for explicit-state tools. The framework rests on four theoretical pillars: (1) Metzler semigroup error contraction ensuring linear rather than exponential error accumulation, (2) rank-1 TT mask preservation for axis-aligned predicates, (3) carry-based TT construction for linear predicates with bond dimension \u2264 R+1, and (4) O(N\u00b7d\u00b7\u03c7\u00b3) vs O(d^N) complexity separation for modular CTMCs. Three-valued semantics {TRUE, FALSE, INDETERMINATE} provides sound verdicts under compression uncertainty. All reviewers find the approach novel and the Metzler contractivity theorem elegant; the central concern is the absence of a compressibility theorem \u2014 the Modular Compressibility Hypothesis remains empirical, supported by 25 models but lacking structural sufficient conditions.",
+    "agreed_strengths": [
+      {
+        "point": "Metzler semigroup error contraction is the theoretical cornerstone",
+        "detail": "All three reviewers identify Theorem 1 \u2014 exploiting \u2016e^{Qt}\u2016\u2081 = 1 for conservative CTMCs to prove linear error accumulation \u2014 as the paper's strongest theoretical contribution. Sanchez calls it 'elegant' and notes it cleanly separates stochastic structure from compression mechanics. Vasconcelos provides the deepest analysis, contrasting it with generic Gronwall-inequality bounds that would give exponential growth. Bloem recognizes its practical importance for enabling long-horizon CSL properties. Without this result, TT-compressed model checking would be limited to very short time horizons.",
+        "reviewers": [
+          "Sanchez",
+          "Bloem",
+          "Vasconcelos"
+        ]
+      },
+      {
+        "point": "Three-valued semantics is mathematically sound and practically responsible",
+        "detail": "All reviewers agree that returning INDETERMINATE when the probability interval straddles the CSL threshold is the correct design. Sanchez analyzes the conservativeness proof and finds it rigorous. Bloem emphasizes the safety implications \u2014 in synthetic biology verification, a false TRUE could have physical consequences. Vasconcelos notes this is 'a model of how numerical computation and formal verification should interact.' The interval-arithmetic propagation through Boolean and probabilistic operators maintains soundness under CSL formula composition.",
+        "reviewers": [
+          "Sanchez",
+          "Bloem",
+          "Vasconcelos"
+        ]
+      },
+      {
+        "point": "Rank-1 TT mask preservation enables tractable CSL evaluation",
+        "detail": "Sanchez and Vasconcelos both highlight that axis-aligned predicates decomposing as tensor products of per-site indicators means Hadamard multiplication with the probability TT preserves bond dimension. This structural result is critical: without it, every atomic proposition evaluation would increase bond dimension, making CSL checking on TT representations impractical. The carry-based extension to linear predicates broadens applicability to weighted-sum properties common in biological specifications.",
+        "reviewers": [
+          "Sanchez",
+          "Vasconcelos"
+        ]
+      },
+      {
+        "point": "Independent 11-check verifier provides genuine auditability",
+        "detail": "The separation of computation from verification via JSON trace serialization follows the proof-carrying code paradigm. Sanchez notes this is appropriate for safety-critical applications. Bloem emphasizes that third-party reimplementation of the verifier (without the TT engine) would provide an independent correctness check. The 205-test suite with exact analytical validations (birth-death Poisson recovery, gene expression accuracy at 10\u207b\u00b9\u00b2) demonstrates implementation maturity.",
+        "reviewers": [
+          "Sanchez",
+          "Bloem",
+          "Vasconcelos"
+        ]
+      },
+      {
+        "point": "O(N) complexity separation establishes formal tractability advantage",
+        "detail": "Theorem 4 proving O(N\u00b7d\u00b7\u03c7\u00b3) cost for modular CTMCs versus O(d^N) for explicit methods is the formal justification for the entire approach. Vasconcelos emphasizes this is a genuine complexity-theoretic result, not merely an empirical speedup. The 7.8\u00d710\u00b9\u00b3\u00d7 compression ratio at N=10 demonstrates the practical impact, though all reviewers note the extrapolation to N=50-100 requires stronger validation.",
+        "reviewers": [
+          "Sanchez",
+          "Bloem",
+          "Vasconcelos"
+        ]
+      }
+    ],
+    "agreed_weaknesses": [
+      {
+        "point": "No compressibility theorem \u2014 the fundamental gap",
+        "detail": "All reviewers identify this as the critical limitation. The Modular Compressibility Hypothesis is supported by 25 models but lacks sufficient structural conditions. Sanchez asks for provably low-rank network classes (weakly coupled, product-form). Vasconcelos connects this to the area-law conjecture but notes the analogy is not rigorous for non-Hermitian generators. Bloem emphasizes practical consequences: practitioners cannot predict compressibility for new models without running the (potentially expensive) computation. Without a compressibility theorem, TN-Check's applicability boundary is unknowable a priori.",
+        "severity": "critical",
+        "reviewers": [
+          "Sanchez",
+          "Bloem",
+          "Vasconcelos"
+        ]
+      },
+      {
+        "point": "Non-Hermitian TDVP adaptation lacks rigorous convergence analysis",
+        "detail": "All reviewers raise concerns about the 2-site TDVP integrator applied to non-Hermitian CME generators. The variational principle underlying TDVP convergence proofs applies only to Hermitian operators. Sanchez notes the non-unitary time evolution and non-orthogonal tangent spaces introduce uncharacterized errors. Vasconcelos identifies a specific gap: TDVP minimizes Frobenius-norm residual, but CSL checking requires L\u00b9 probability error \u2014 the Frobenius-to-L\u00b9 conversion via Cauchy-Schwarz may be arbitrarily loose for high-dimensional distributions. Bloem suggests comparison with TEBD as an alternative.",
+        "severity": "high",
+        "reviewers": [
+          "Sanchez",
+          "Bloem",
+          "Vasconcelos"
+        ]
+      },
+      {
+        "point": "Verdict-level comparison with PRISM/Storm is absent",
+        "detail": "Sanchez and Bloem both emphasize that scalability comparisons (runtime vs. state-space size) are insufficient without verdict-level agreement on overlapping models. Distribution-level accuracy checks do not validate temporal operator implementation. The cross-validation with PRISM/Storm on CSL properties for N \u2264 5-6 species would provide essential correctness evidence. Vasconcelos also notes the need for property-by-property agreement rather than aggregate accuracy metrics.",
+        "severity": "high",
+        "reviewers": [
+          "Sanchez",
+          "Bloem",
+          "Vasconcelos"
+        ]
+      },
+      {
+        "point": "Cumulative clamping bias is unidirectional and untracked",
+        "detail": "Sanchez provides the most detailed analysis: clamping negative TT-SVD entries to zero creates systematic positive bias that accumulates over T time steps, potentially up to T\u00b7\u03b5_trunc. This bias is not captured by the symmetric interval-arithmetic framework and could produce false TRUE verdicts for P\u2265p[\u03c8] properties. Vasconcelos warns of systematic overestimation of rare event probabilities. The Frobenius-to-L\u00b9 bounds partially address magnitude but not directionality.",
+        "severity": "medium",
+        "reviewers": [
+          "Sanchez",
+          "Vasconcelos"
+        ]
+      },
+      {
+        "point": "Small benchmark library limits generalizability claims",
+        "detail": "The 25-model benchmark suite is small relative to the thousands of curated models in BioModels. Bloem specifically notes the absence of models with spatial heterogeneity, time-varying rates, or multi-scale stiffness spanning 6+ orders of magnitude. Vasconcelos requests bistable models near bifurcation points where area-law scaling may break down. Broader automated SBML import would strengthen empirical claims substantially.",
+        "severity": "medium",
+        "reviewers": [
+          "Sanchez",
+          "Bloem",
+          "Vasconcelos"
+        ]
+      }
+    ],
+    "divergent_opinions": [
+      {
+        "topic": "Severity of compressibility gap",
+        "detail": "Sanchez treats this as a potential soundness concern (the tool may silently fail on incompressible models). Vasconcelos views it as a natural open problem analogous to the area-law conjecture and expects a compressibility theorem within 5 years. Bloem takes the most pragmatic view, suggesting ML-based compressibility prediction as a near-term mitigation even without a theorem."
+      },
+      {
+        "topic": "Statistical model checking comparison",
+        "detail": "Bloem uniquely emphasizes the need for comparison with SSA-based statistical model checking (SPRT, importance sampling). He argues that for many practical applications, PAC-correct statistical verdicts may be preferable to certified-but-potentially-INDETERMINATE TT verdicts. Neither Sanchez nor Vasconcelos raise this comparison, reflecting their orientation toward exact rather than statistical methods."
+      },
+      {
+        "topic": "Entanglement entropy as compressibility predictor",
+        "detail": "Vasconcelos provides deep analysis connecting biological modular structure to area-law entropy scaling, but also identifies limitations (non-Hermitian generators, critical systems near phase transitions). Sanchez and Bloem accept the empirical correlation without probing its theoretical foundations."
+      },
+      {
+        "topic": "Spectral gap circularity",
+        "detail": "Vasconcelos uniquely identifies that computing the spectral gap from the TT-approximated generator creates a circularity: the convergence guarantee depends on a quantity whose accuracy is itself uncharacterized. An overestimated spectral gap could cause premature termination with incorrect results. Neither Sanchez nor Bloem raise this subtle but important concern."
+      }
+    ],
+    "critical_questions": [
+      "Can you provide sufficient conditions on reaction network topology guaranteeing bounded TT rank? Are there known classes (weakly coupled, tree-structured, product-form) with provable area-law analogues?",
+      "Have you cross-validated TN-Check CSL verdicts against PRISM/Storm on all overlapping models? Provide a property-by-property agreement table.",
+      "What is the empirical cumulative clamping bias over 1000+ TDVP steps for stiff models? Does the directional bias affect any CSL verdicts?",
+      "How does TDVP's Frobenius residual relate to the L\u00b9 probability error needed for CSL checking? Is the Cauchy-Schwarz bound tight?",
+      "What is the entanglement entropy scaling for bistable biological systems near bifurcation points?",
+      "How does runtime compare to sequential probability ratio test (SPRT) based statistical model checking on the same models?"
+    ],
+    "recommended_revisions": [
+      "Provide a compressibility theorem: sufficient conditions on reaction network structure (topology, rate constants, stoichiometry) guaranteeing bounded TT rank. Connect to entanglement entropy bounds.",
+      "Perform verdict-by-verdict CSL property comparison with PRISM/Storm on all models where both tools can run. Report property-level agreement, not just aggregate accuracy.",
+      "Analyze TDVP convergence for non-Hermitian CME generators: provide L\u00b9 error bounds in terms of Frobenius residual, or adopt TEBD as an alternative with simpler error analysis.",
+      "Characterize cumulative clamping bias: measure directional bias over long horizons and verify it does not affect CSL verdicts for threshold-sensitive properties.",
+      "Provide a unified error propagation theorem combining FSP truncation, TT-SVD compression, TDVP integration, and clamping errors through a complete CSL formula evaluation.",
+      "Expand benchmark library to 50+ models via automated SBML import from BioModels, including bistable switches, multi-scale systems, and spatially structured models.",
+      "Compare runtime and verdict quality against statistical model checking (SPRT, importance sampling) on overlapping models.",
+      "Analyze bond-dimension growth through nested CSL formula evaluation and characterize the maximum practical nesting depth."
+    ]
+  }
 }

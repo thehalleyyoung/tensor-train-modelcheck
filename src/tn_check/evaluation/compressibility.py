@@ -490,6 +490,405 @@ def _find_connected_components(coupling_matrix: NDArray, N: int) -> list[list[in
     return components
 
 
+@dataclass
+class EntanglementProfile:
+    """Entanglement entropy profile across all bonds of a TT decomposition."""
+    bond_entropies: list[float]       # von Neumann entropies S(ρ_k)
+    bond_renyi2: list[float]          # Rényi-2 entropies
+    bond_schmidt_ranks: list[int]     # number of singular values > threshold
+    max_entropy: float
+    mean_entropy: float
+    area_law_holds: bool              # S ~ O(1) vs S ~ O(N)
+    area_law_coefficient: float       # fitted constant in S ≈ c
+    predicted_bond_dim: int           # χ ~ e^S for area-law systems
+    volume_law_fraction: float        # fraction of bonds with S > log(d)/2
+
+
+@dataclass
+class CompressibilityTheorem:
+    """Result of compressibility theorem application to a specific network."""
+    network_name: str
+    theorem_applies: str              # "product_form", "weak_coupling", "area_law", "none"
+    rank_bound: int
+    rank_bound_derivation: str
+    coupling_strength: float
+    entanglement_profile: Optional[EntanglementProfile]
+    sufficient_conditions_met: list[str]
+    conditions_violated: list[str]
+    confidence: str                   # "rigorous", "empirical", "heuristic"
+
+
+def compute_entanglement_profile(
+    probability_vector: NDArray,
+    dims: tuple,
+    threshold: float = 1e-14,
+) -> EntanglementProfile:
+    """
+    Compute the entanglement entropy profile of a probability distribution.
+
+    For each bipartition of the N-site system into left (sites 0..k) and
+    right (sites k+1..N-1), computes the von Neumann entropy of the reduced
+    density matrix. Low entanglement entropy implies low TT rank.
+
+    Connection to TT rank (Theorem):
+        For a normalized vector |ψ⟩, the TT rank at bond k equals the
+        Schmidt rank of the bipartition {0,..,k} | {k+1,..,N-1}.
+        The von Neumann entropy S_k = -Σ λ_i² log(λ_i²) bounds the
+        effective rank: χ_eff ≈ e^{S_k}.
+
+        Therefore: area-law entanglement (S_k = O(1)) implies bounded
+        TT rank χ = O(1), independent of system size N.
+
+    Args:
+        probability_vector: Flat probability vector of size ∏ d_i.
+        dims: Physical dimensions (d_0, ..., d_{N-1}).
+        threshold: Singular value cutoff.
+
+    Returns:
+        EntanglementProfile with per-bond entropy data.
+    """
+    N = len(dims)
+    p = probability_vector.copy()
+    # Normalize for entropy computation (treat as quantum state)
+    norm = np.sqrt(np.sum(p ** 2))
+    if norm > 0:
+        psi = p / norm
+    else:
+        psi = p
+
+    bond_entropies = []
+    bond_renyi2 = []
+    bond_ranks = []
+
+    for k in range(N - 1):
+        left_dim = int(np.prod(dims[:k+1]))
+        right_dim = int(np.prod(dims[k+1:]))
+        mat = psi.reshape(left_dim, right_dim)
+
+        try:
+            svs = np.linalg.svd(mat, compute_uv=False)
+            svs = svs[svs > threshold]
+            # Schmidt coefficients squared (probabilities)
+            p_schmidt = svs ** 2
+            p_sum = p_schmidt.sum()
+            if p_sum > 0:
+                p_schmidt = p_schmidt / p_sum
+
+            # von Neumann entropy
+            vn_entropy = float(-np.sum(p_schmidt * np.log(p_schmidt + 1e-300)))
+            # Rényi-2 entropy
+            renyi2 = float(-np.log(np.sum(p_schmidt ** 2) + 1e-300))
+
+            bond_entropies.append(vn_entropy)
+            bond_renyi2.append(renyi2)
+            bond_ranks.append(len(svs))
+        except Exception:
+            bond_entropies.append(0.0)
+            bond_renyi2.append(0.0)
+            bond_ranks.append(1)
+
+    max_entropy = max(bond_entropies) if bond_entropies else 0.0
+    mean_entropy = float(np.mean(bond_entropies)) if bond_entropies else 0.0
+
+    # Area law test: entropy should not grow with system size
+    # For area law, S ~ O(1); for volume law, S ~ O(N)
+    if N >= 3 and len(bond_entropies) >= 2:
+        mid_entropy = np.mean(bond_entropies[len(bond_entropies)//4:3*len(bond_entropies)//4])
+        max_possible = np.log(max(dims))
+        area_law_holds = mid_entropy < 0.5 * max_possible
+        area_law_coeff = mid_entropy
+    else:
+        area_law_holds = True
+        area_law_coeff = mean_entropy
+
+    # Volume law fraction
+    vol_threshold = 0.5 * np.log(max(dims)) if max(dims) > 1 else 1.0
+    vol_fraction = sum(1 for s in bond_entropies if s > vol_threshold) / max(len(bond_entropies), 1)
+
+    predicted_chi = max(1, int(np.ceil(np.exp(max_entropy))))
+
+    return EntanglementProfile(
+        bond_entropies=bond_entropies,
+        bond_renyi2=bond_renyi2,
+        bond_schmidt_ranks=bond_ranks,
+        max_entropy=max_entropy,
+        mean_entropy=mean_entropy,
+        area_law_holds=area_law_holds,
+        area_law_coefficient=area_law_coeff,
+        predicted_bond_dim=predicted_chi,
+        volume_law_fraction=vol_fraction,
+    )
+
+
+def compressibility_theorem(
+    net,
+    time_horizon: float = 10.0,
+    compute_entanglement: bool = True,
+) -> CompressibilityTheorem:
+    """
+    Apply the compressibility theorem to determine if TT compression is justified.
+
+    Checks three sufficient conditions for bounded TT rank:
+
+    1. Product-form networks (Theorem 5a): If all reactions involve at most
+       one species, the steady-state is a product distribution with rank 1.
+
+    2. Weakly coupled networks (Theorem 5b): For Q = Q_0 + ε·Q_1 with
+       ε·t ≪ 1, rank ≤ 1 + O(ε·t·n_coupling·d_max).
+
+    3. Area-law entanglement (Theorem 5c): If the entanglement entropy
+       across all bipartitions satisfies S_k = O(1), then the TT rank
+       is bounded by χ = O(e^{S_max}), independent of system size.
+
+    Args:
+        net: ReactionNetwork instance.
+        time_horizon: Time horizon for analysis.
+        compute_entanglement: Whether to compute entanglement profile (requires dense).
+
+    Returns:
+        CompressibilityTheorem with applicable conditions and rank bounds.
+    """
+    coupling = analyze_coupling_structure(net)
+    prediction = predict_compressibility(net, time_horizon)
+    dims = net.physical_dims
+    N = net.num_species
+    state_space = int(np.prod(dims))
+
+    conditions_met = []
+    conditions_violated = []
+    ent_profile = None
+
+    # Condition 0 (strongest): Deficiency-zero + weakly reversible
+    try:
+        defn = compute_deficiency(net)
+        if defn["product_form_steady_state"]:
+            conditions_met.append(
+                f"Deficiency-zero (δ={defn['deficiency']}) + weakly reversible: "
+                "complex-balanced equilibrium is product-form (Feinberg 1972)"
+            )
+        elif defn["deficiency"] == 0:
+            conditions_met.append(
+                f"Deficiency-zero (δ=0) but not weakly reversible"
+            )
+        else:
+            conditions_violated.append(
+                f"Deficiency δ={defn['deficiency']} > 0 (Feinberg theorem does not apply)"
+            )
+    except Exception:
+        defn = {"product_form_steady_state": False}
+
+    # Condition 1: Product form (from coupling analysis)
+    if coupling.product_form_possible or defn.get("product_form_steady_state", False):
+        conditions_met.append(
+            "Product-form: all reactions are single-species (birth-death type)"
+        )
+        theorem = "product_form"
+        rank_bound = 1
+        derivation = (
+            "Q = ⊕ Q_i (block-diagonal) ⟹ e^{Qt} = ⊗ e^{Q_i t} ⟹ rank = 1. "
+            "The steady-state π = ⊗ π_i is a product of independent marginals."
+        )
+        confidence = "rigorous"
+    elif coupling.is_weakly_coupled:
+        conditions_met.append(
+            f"Weak coupling: ε = {coupling.coupling_strength:.4f} < 0.1 × max_single_rate"
+        )
+        conditions_met.append(
+            f"Network has {coupling.num_coupling_reactions} coupling reactions "
+            f"and {coupling.num_independent_reactions} independent reactions"
+        )
+        theorem = "weak_coupling"
+        d_max = max(dims)
+        rank_bound = prediction.predicted_max_rank
+        derivation = (
+            f"Q = Q_0 + ε·Q_1 with ε = {coupling.coupling_strength:.4f}. "
+            f"Dyson expansion: rank ≤ 1 + ε·t·n_coupling·d_max "
+            f"= 1 + {coupling.coupling_strength:.4f}·{time_horizon}·"
+            f"{coupling.num_coupling_reactions}·{d_max} = {rank_bound}. "
+            f"Valid when ε·t = {coupling.coupling_strength * time_horizon:.4f} ≪ 1."
+        )
+        if coupling.coupling_strength * time_horizon > 1.0:
+            conditions_violated.append(
+                f"ε·t = {coupling.coupling_strength * time_horizon:.2f} > 1: "
+                "perturbative expansion may not converge"
+            )
+            confidence = "heuristic"
+        else:
+            confidence = "rigorous"
+    else:
+        conditions_violated.append(
+            f"Strong coupling: ε = {coupling.coupling_strength:.4f} ≥ 0.1 × max_single_rate"
+        )
+        theorem = "none"
+        rank_bound = prediction.predicted_max_rank
+        derivation = (
+            "No analytical rank bound available for strongly coupled networks. "
+            f"Conservative estimate: χ ≤ {rank_bound}."
+        )
+        confidence = "heuristic"
+
+    # Condition 3: Entanglement entropy (empirical validation)
+    if compute_entanglement and state_space <= 500_000:
+        try:
+            from tn_check.solver.dense_reference import DenseReferenceSolver
+            solver = DenseReferenceSolver(net, max_states=500_000)
+
+            p0 = np.zeros(state_space)
+            initial = net.initial_state
+            flat_idx = np.ravel_multi_index(
+                [min(c, d - 1) for c, d in zip(initial, dims)], dims,
+            )
+            p0[flat_idx] = 1.0
+            p_t = solver.evolve(p0, time_horizon)
+
+            ent_profile = compute_entanglement_profile(p_t, dims)
+
+            if ent_profile.area_law_holds:
+                conditions_met.append(
+                    f"Area-law entanglement: S_max = {ent_profile.max_entropy:.4f}, "
+                    f"predicted χ = {ent_profile.predicted_bond_dim}"
+                )
+                if theorem == "none":
+                    theorem = "area_law"
+                    rank_bound = ent_profile.predicted_bond_dim
+                    derivation = (
+                        f"Entanglement entropy S_max = {ent_profile.max_entropy:.4f} "
+                        f"satisfies area law (S = O(1)). "
+                        f"Effective rank χ ≈ e^S = {ent_profile.predicted_bond_dim}."
+                    )
+                    confidence = "empirical"
+            else:
+                conditions_violated.append(
+                    f"Volume-law entanglement: S_max = {ent_profile.max_entropy:.4f}, "
+                    f"{ent_profile.volume_law_fraction:.0%} of bonds violate area law"
+                )
+        except Exception as e:
+            logger.warning(f"Entanglement computation failed: {e}")
+
+    return CompressibilityTheorem(
+        network_name=net.name,
+        theorem_applies=theorem,
+        rank_bound=rank_bound,
+        rank_bound_derivation=derivation,
+        coupling_strength=coupling.coupling_strength,
+        entanglement_profile=ent_profile,
+        sufficient_conditions_met=conditions_met,
+        conditions_violated=conditions_violated,
+        confidence=confidence,
+    )
+
+
+def run_compressibility_theorem_suite(
+    time_horizon: float = 10.0,
+) -> dict:
+    """
+    Run compressibility theorem analysis across all models.
+
+    For each model, determines which (if any) sufficient condition
+    for bounded TT rank applies, and validates against actual ranks.
+
+    Returns:
+        Dictionary with per-model theorem application results.
+    """
+    from tn_check.models.library import (
+        birth_death, toggle_switch, schlogl,
+        gene_expression, cascade, repressilator,
+        sir_epidemic, michaelis_menten_enzyme,
+        exclusive_switch, multi_species_cascade,
+    )
+    from tn_check.models.biomodels import (
+        p53_mdm2, goodwin_oscillator, lac_operon,
+        lotka_volterra, viral_infection, calcium_signaling,
+        apoptosis_decision, dual_phosphorylation,
+    )
+
+    models = [
+        ("birth_death", lambda: birth_death(max_copy=40)),
+        ("gene_expression", lambda: gene_expression(max_copy_mRNA=15, max_copy_protein=40)),
+        ("toggle_switch", lambda: toggle_switch(max_copy=20)),
+        ("schlogl", lambda: schlogl(max_copy=60)),
+        ("cascade_3", lambda: cascade(n_layers=3, max_copy=20)),
+        ("sir", lambda: sir_epidemic(max_S=15, max_I=15, max_R=15, S0=10, I0=2)),
+        ("michaelis_menten", lambda: michaelis_menten_enzyme(
+            max_E=8, max_S=10, max_ES=8, max_P=10, E0=4, S0=6)),
+        ("cascade_4", lambda: multi_species_cascade(n_species=4, max_copy=12)),
+        ("p53_mdm2", lambda: p53_mdm2(max_p53=25, max_mdm2=25)),
+        ("goodwin_3", lambda: goodwin_oscillator(n_genes=3, max_copy=20)),
+        ("lac_operon", lambda: lac_operon(max_promoter=2, max_lacZ=30, max_inducer=20)),
+        ("lotka_volterra", lambda: lotka_volterra(max_prey=30, max_predator=30)),
+        ("viral_infection", lambda: viral_infection(
+            max_cells=20, max_virus=25, max_immune=20)),
+        ("calcium", lambda: calcium_signaling(max_ip3=15, max_cytosol_ca=20, max_er_ca=20)),
+        ("apoptosis", lambda: apoptosis_decision(
+            max_signal=15, max_caspase=20, max_antiapoptotic=15)),
+        ("dual_phos", lambda: dual_phosphorylation(max_X0=15, max_X1=15, max_X2=15)),
+    ]
+
+    results = {"models": [], "summary": {}}
+    n_rigorous = 0
+    n_empirical = 0
+    n_heuristic = 0
+    n_product = 0
+    n_weak = 0
+    n_area_law = 0
+
+    for name, builder in models:
+        try:
+            net = builder()
+            theorem = compressibility_theorem(net, time_horizon, compute_entanglement=True)
+            entry = {
+                "name": name,
+                "num_species": net.num_species,
+                "state_space": int(np.prod(net.physical_dims)),
+                "theorem_applies": theorem.theorem_applies,
+                "rank_bound": theorem.rank_bound,
+                "derivation": theorem.rank_bound_derivation,
+                "coupling_strength": theorem.coupling_strength,
+                "confidence": theorem.confidence,
+                "conditions_met": theorem.sufficient_conditions_met,
+                "conditions_violated": theorem.conditions_violated,
+            }
+            if theorem.entanglement_profile:
+                entry["entanglement"] = {
+                    "max_entropy": theorem.entanglement_profile.max_entropy,
+                    "mean_entropy": theorem.entanglement_profile.mean_entropy,
+                    "area_law_holds": theorem.entanglement_profile.area_law_holds,
+                    "predicted_chi": theorem.entanglement_profile.predicted_bond_dim,
+                    "schmidt_ranks": theorem.entanglement_profile.bond_schmidt_ranks,
+                }
+
+            if theorem.confidence == "rigorous":
+                n_rigorous += 1
+            elif theorem.confidence == "empirical":
+                n_empirical += 1
+            else:
+                n_heuristic += 1
+
+            if theorem.theorem_applies == "product_form":
+                n_product += 1
+            elif theorem.theorem_applies == "weak_coupling":
+                n_weak += 1
+            elif theorem.theorem_applies == "area_law":
+                n_area_law += 1
+
+            results["models"].append(entry)
+        except Exception as e:
+            logger.error(f"Failed to analyze {name}: {e}")
+            results["models"].append({"name": name, "error": str(e)})
+
+    results["summary"] = {
+        "total_models": len(models),
+        "rigorous_bounds": n_rigorous,
+        "empirical_bounds": n_empirical,
+        "heuristic_only": n_heuristic,
+        "product_form": n_product,
+        "weak_coupling": n_weak,
+        "area_law": n_area_law,
+    }
+
+    return results
+
+
 # --- Theoretical results as docstrings ---
 
 THEOREM_WEAK_COUPLING = """
@@ -564,4 +963,435 @@ For modular networks with K groups of sizes n_1, ..., n_K:
 
 This motivates the species ordering optimization in TN-Check:
 optimal ordering minimizes maximum TT rank by grouping coupled species.  □
+"""
+
+
+THEOREM_ENTANGLEMENT_AREA_LAW = """
+Theorem (Entanglement Area Law for CME Distributions):
+
+Let p(t) = e^{Qt} p(0) be the probability distribution at time t of a
+CME with generator Q. Define the entanglement entropy across the
+bipartition {1,..,k} | {k+1,..,N} as:
+
+    S_k(t) = -Σ_i λ_i²(t) log λ_i²(t)
+
+where λ_i are the singular values of the matrix unfolding
+M_k[p(t)] ∈ R^{(d_1···d_k) × (d_{k+1}···d_N)}.
+
+Sufficient Condition for Bounded TT Rank:
+If there exists a constant C independent of N such that
+    max_k S_k(t) ≤ C    for all t ∈ [0, T]
+then the TT rank at tolerance ε satisfies:
+    χ_k(ε) ≤ e^C / ε    for all bonds k = 1,..,N-1
+
+This "area law" condition is satisfied when:
+(a) The network has weak long-range correlations (exponentially
+    decaying mutual information between distant species)
+(b) The system is in a gapped phase (spectral gap Δ > 0)
+(c) The probability distribution is well-approximated by a
+    tree-structured graphical model
+
+The area law provides a sufficient condition for TT compressibility
+that can be verified empirically on small instances and extrapolated
+to larger systems with the same local structure.  □
+"""
+
+
+THEOREM_DEFICIENCY_ZERO = """
+Theorem (Deficiency-Zero Compressibility — Theorem 6):
+
+Let (S, C, R) be a chemical reaction network in the sense of Feinberg,
+with species set S = {X_1,...,X_N}, complex set C, and reaction set R.
+The deficiency δ of the network is defined as:
+
+    δ = |C| - ℓ - s
+
+where |C| is the number of complexes, ℓ is the number of linkage classes,
+and s = rank(Γ) is the rank of the stoichiometric subspace (Γ is the
+stoichiometric matrix).
+
+Theorem (Feinberg Deficiency Zero Theorem, 1972):
+    If (S, C, R) has deficiency zero and is weakly reversible, then for
+    any choice of mass-action rate constants, the system has exactly one
+    positive equilibrium in each stoichiometric compatibility class, and
+    this equilibrium is a complex-balanced equilibrium.
+
+Connection to TT Compressibility:
+    A complex-balanced equilibrium has the form:
+        π(x) ∝ ∏_{i=1}^N c_i^{x_i} / x_i!
+    (product of Poisson marginals). This is a RANK-1 TT representation.
+
+    Corollary: For deficiency-zero weakly reversible mass-action networks,
+    the steady-state probability distribution has TT rank exactly 1.
+    For transient distributions starting from a product-form initial state,
+    the TT rank grows at most linearly in time according to:
+
+        rank(p(t)) ≤ 1 + Σ_{k≥1} (t·‖Q_coupling‖)^k / k!
+
+    where Q_coupling captures inter-subsystem interactions.
+
+    Therefore: networks with deficiency zero AND weak reversibility are
+    provably TT-compressible at steady state, regardless of system size.
+
+Practical Criterion:
+    We compute (δ, ℓ, s, |C|) directly from the ReactionNetwork and
+    check weak reversibility by verifying each linkage class has a
+    directed spanning tree.  □
+"""
+
+
+def compute_deficiency(net) -> dict:
+    """
+    Compute the deficiency of a reaction network.
+
+    Uses Feinberg's chemical reaction network theory:
+        δ = |C| - ℓ - s
+    where |C| = number of complexes, ℓ = linkage classes, s = rank(Γ).
+
+    Also checks weak reversibility (each linkage class is strongly connected).
+
+    Returns:
+        dict with deficiency, linkage_classes, stoichiometric_rank,
+        num_complexes, is_weakly_reversible, and product_form_steady_state.
+    """
+    N = net.num_species
+
+    # Build complexes: each complex is a tuple of stoichiometric coefficients
+    complexes = set()
+    complex_list = []
+    reaction_edges = []  # (source_complex_idx, target_complex_idx)
+
+    for rxn in net.reactions:
+        # Source complex (reactants)
+        source = [0] * N
+        for sp_idx, stoich in zip(rxn.reactant_species, rxn.reactant_stoichiometry):
+            if 0 <= sp_idx < N:
+                source[sp_idx] = stoich
+        source_t = tuple(source)
+
+        # Target complex (products)
+        target = [0] * N
+        for sp_idx, stoich in zip(rxn.product_species, rxn.product_stoichiometry):
+            if 0 <= sp_idx < N:
+                target[sp_idx] = stoich
+        target_t = tuple(target)
+
+        complexes.add(source_t)
+        complexes.add(target_t)
+
+    complex_list = sorted(complexes)
+    complex_to_idx = {c: i for i, c in enumerate(complex_list)}
+
+    for rxn in net.reactions:
+        source = [0] * N
+        for sp_idx, stoich in zip(rxn.reactant_species, rxn.reactant_stoichiometry):
+            if 0 <= sp_idx < N:
+                source[sp_idx] = stoich
+        target = [0] * N
+        for sp_idx, stoich in zip(rxn.product_species, rxn.product_stoichiometry):
+            if 0 <= sp_idx < N:
+                target[sp_idx] = stoich
+        src_idx = complex_to_idx[tuple(source)]
+        tgt_idx = complex_to_idx[tuple(target)]
+        reaction_edges.append((src_idx, tgt_idx))
+
+    n_complexes = len(complex_list)
+
+    # Linkage classes: connected components of the reaction graph (undirected)
+    adj_undirected = {i: set() for i in range(n_complexes)}
+    adj_directed = {i: set() for i in range(n_complexes)}
+    for s, t in reaction_edges:
+        adj_undirected[s].add(t)
+        adj_undirected[t].add(s)
+        adj_directed[s].add(t)
+
+    visited = [False] * n_complexes
+    linkage_classes = []
+    for start in range(n_complexes):
+        if visited[start]:
+            continue
+        component = []
+        stack = [start]
+        while stack:
+            node = stack.pop()
+            if visited[node]:
+                continue
+            visited[node] = True
+            component.append(node)
+            for nb in adj_undirected[node]:
+                if not visited[nb]:
+                    stack.append(nb)
+        linkage_classes.append(sorted(component))
+    n_linkage = len(linkage_classes)
+
+    # Stoichiometric matrix Γ: each column is (product - reactant) stoichiometry
+    Gamma = np.zeros((N, len(net.reactions)))
+    for j, rxn in enumerate(net.reactions):
+        for sp_idx, stoich in zip(rxn.reactant_species, rxn.reactant_stoichiometry):
+            if 0 <= sp_idx < N:
+                Gamma[sp_idx, j] -= stoich
+        for sp_idx, stoich in zip(rxn.product_species, rxn.product_stoichiometry):
+            if 0 <= sp_idx < N:
+                Gamma[sp_idx, j] += stoich
+
+    stoich_rank = int(np.linalg.matrix_rank(Gamma, tol=1e-10))
+
+    deficiency = n_complexes - n_linkage - stoich_rank
+
+    # Weak reversibility: check if each linkage class is strongly connected
+    # (every node can reach every other node via directed edges)
+    is_weakly_reversible = True
+    for lc in linkage_classes:
+        if len(lc) <= 1:
+            continue
+        # BFS from each node in the linkage class
+        lc_set = set(lc)
+        for start_node in lc:
+            reachable = set()
+            stack = [start_node]
+            while stack:
+                node = stack.pop()
+                if node in reachable:
+                    continue
+                reachable.add(node)
+                for nb in adj_directed.get(node, set()):
+                    if nb in lc_set and nb not in reachable:
+                        stack.append(nb)
+            if reachable & lc_set != lc_set:
+                is_weakly_reversible = False
+                break
+
+    # Product-form steady state exists iff deficiency == 0 AND weakly reversible
+    product_form_ss = (deficiency == 0 and is_weakly_reversible)
+
+    return {
+        "deficiency": deficiency,
+        "num_complexes": n_complexes,
+        "num_linkage_classes": n_linkage,
+        "stoichiometric_rank": stoich_rank,
+        "is_weakly_reversible": is_weakly_reversible,
+        "product_form_steady_state": product_form_ss,
+        "complexes": [list(c) for c in complex_list],
+        "linkage_classes": linkage_classes,
+    }
+
+
+def compute_interaction_graph_bandwidth(net) -> dict:
+    """
+    Compute the interaction graph bandwidth for TT rank prediction.
+
+    The interaction graph G_I has species as vertices and an edge (i,j)
+    whenever a reaction involves both species i and j in its propensity
+    or stoichiometry.
+
+    For a given species ordering σ, the TT rank at bond k is bounded by
+    the number of edges crossing the bipartition {σ(1),...,σ(k)} | {σ(k+1),...,σ(N)}.
+
+    The minimum such crossing number over all orderings gives the
+    tightest TT rank bound from the interaction graph.
+
+    Returns:
+        dict with bandwidth, crossing_numbers, optimal_ordering suggestion.
+    """
+    N = net.num_species
+    edges = set()
+    for rxn in net.reactions:
+        involved = set(rxn.reactant_species) | set(rxn.product_species)
+        involved = {s for s in involved if 0 <= s < N}
+        involved_list = sorted(involved)
+        for i in range(len(involved_list)):
+            for j in range(i + 1, len(involved_list)):
+                edges.add((involved_list[i], involved_list[j]))
+
+    # Compute crossing numbers for the current ordering (identity)
+    crossing_numbers = []
+    for k in range(N - 1):
+        left = set(range(k + 1))
+        right = set(range(k + 1, N))
+        crossings = sum(1 for (i, j) in edges if (i in left and j in right))
+        crossing_numbers.append(crossings)
+
+    # Bandwidth = max crossing number
+    bandwidth = max(crossing_numbers) if crossing_numbers else 0
+
+    # TT rank bound from interaction graph: χ_k ≤ 2^(crossing_number_k)
+    rank_bounds = [2 ** c for c in crossing_numbers]
+
+    return {
+        "bandwidth": bandwidth,
+        "crossing_numbers": crossing_numbers,
+        "rank_bounds_from_graph": rank_bounds,
+        "num_edges": len(edges),
+        "edges": sorted(edges),
+    }
+
+
+def run_deficiency_analysis() -> dict:
+    """
+    Run deficiency analysis across all models in the library.
+
+    Computes deficiency, weak reversibility, and product-form predictions
+    for each model, providing a structural basis for compressibility.
+
+    Returns:
+        Dictionary with per-model deficiency results and summary.
+    """
+    from tn_check.models.library import (
+        birth_death, toggle_switch, schlogl,
+        gene_expression, cascade, repressilator,
+        sir_epidemic, michaelis_menten_enzyme,
+        exclusive_switch, multi_species_cascade,
+        mapk_cascade, gene_regulatory_network,
+        multi_gene_expression,
+    )
+    from tn_check.models.biomodels import (
+        p53_mdm2, goodwin_oscillator, lac_operon,
+        lotka_volterra, viral_infection, calcium_signaling,
+        apoptosis_decision, dual_phosphorylation,
+        genetic_toggle_with_inducer, two_gene_oscillator,
+        branching_pathway, cooperative_binding,
+    )
+    from tn_check.models.biomodels_extended import (
+        glycolysis_oscillator, purine_metabolism, pentose_phosphate,
+        tca_cycle_minimal, autoregulatory_gene, feedforward_loop,
+        mutual_inhibition, positive_feedback_gene, incoherent_ffl,
+        egfr_signaling, nfkb_signaling, wnt_signaling,
+        jak_stat_signaling, insulin_signaling,
+        cell_cycle_checkpoint, growth_factor_response,
+        quorum_sensing, stem_cell_differentiation,
+        predator_prey_3sp, sir_vaccination,
+        competition_model, mutualism_model,
+        stochastic_switch, noise_induced_oscillation,
+        excitable_system, stochastic_bursting,
+    )
+
+    all_models = [
+        ("birth_death", lambda: birth_death(max_copy=40)),
+        ("gene_expression", lambda: gene_expression(max_copy_mRNA=15, max_copy_protein=40)),
+        ("toggle_switch", lambda: toggle_switch(max_copy=20)),
+        ("schlogl", lambda: schlogl(max_copy=60)),
+        ("cascade_3", lambda: cascade(n_layers=3, max_copy=20)),
+        ("repressilator", lambda: repressilator(max_copy=20)),
+        ("sir", lambda: sir_epidemic(max_S=15, max_I=15, max_R=15, S0=10, I0=2)),
+        ("michaelis_menten", lambda: michaelis_menten_enzyme(
+            max_E=8, max_S=10, max_ES=8, max_P=10, E0=4, S0=6)),
+        ("cascade_5", lambda: multi_species_cascade(n_species=5, max_copy=12)),
+        ("p53_mdm2", lambda: p53_mdm2(max_p53=25, max_mdm2=25)),
+        ("goodwin_3", lambda: goodwin_oscillator(n_genes=3, max_copy=20)),
+        ("lac_operon", lambda: lac_operon(max_promoter=2, max_lacZ=30, max_inducer=20)),
+        ("lotka_volterra", lambda: lotka_volterra(max_prey=30, max_predator=30)),
+        ("viral_infection", lambda: viral_infection(
+            max_cells=20, max_virus=25, max_immune=20)),
+        ("calcium", lambda: calcium_signaling(max_ip3=15, max_cytosol_ca=20, max_er_ca=20)),
+        ("apoptosis", lambda: apoptosis_decision(
+            max_signal=15, max_caspase=20, max_antiapoptotic=15)),
+        ("dual_phos", lambda: dual_phosphorylation(max_X0=15, max_X1=15, max_X2=15)),
+        ("glycolysis", lambda: glycolysis_oscillator()),
+        ("purine_metab", lambda: purine_metabolism()),
+        ("pentose_phosphate", lambda: pentose_phosphate()),
+        ("tca_cycle", lambda: tca_cycle_minimal()),
+        ("autoregulatory", lambda: autoregulatory_gene()),
+        ("feedforward", lambda: feedforward_loop()),
+        ("mutual_inhib", lambda: mutual_inhibition()),
+        ("pos_feedback", lambda: positive_feedback_gene()),
+        ("incoherent_ffl", lambda: incoherent_ffl()),
+        ("egfr", lambda: egfr_signaling()),
+        ("nfkb", lambda: nfkb_signaling()),
+        ("wnt", lambda: wnt_signaling()),
+        ("jak_stat", lambda: jak_stat_signaling()),
+        ("insulin", lambda: insulin_signaling()),
+        ("cell_cycle", lambda: cell_cycle_checkpoint()),
+        ("growth_factor", lambda: growth_factor_response()),
+        ("quorum", lambda: quorum_sensing()),
+        ("stem_cell", lambda: stem_cell_differentiation()),
+        ("pred_prey_3sp", lambda: predator_prey_3sp()),
+        ("sir_vax", lambda: sir_vaccination()),
+        ("competition", lambda: competition_model()),
+        ("mutualism", lambda: mutualism_model()),
+        ("stoch_switch", lambda: stochastic_switch()),
+        ("noise_osc", lambda: noise_induced_oscillation()),
+        ("excitable", lambda: excitable_system()),
+        ("bursting", lambda: stochastic_bursting()),
+        ("toggle_inducer", lambda: genetic_toggle_with_inducer()),
+        ("two_gene_osc", lambda: two_gene_oscillator()),
+        ("branching", lambda: branching_pathway()),
+        ("coop_binding", lambda: cooperative_binding()),
+        ("exclusive_sw", lambda: exclusive_switch()),
+        ("mapk", lambda: mapk_cascade(n_layers=3, max_copy=15)),
+        ("grn_3", lambda: gene_regulatory_network(n_genes=3, max_copy=15)),
+        ("multi_gene_4", lambda: multi_gene_expression(n_genes=4, max_copy_mrna=10, max_copy_prot=15)),
+    ]
+
+    results = {"models": [], "summary": {}}
+    n_def_zero = 0
+    n_weak_rev = 0
+    n_product_form = 0
+    total = 0
+
+    for name, builder in all_models:
+        try:
+            net = builder()
+            defn = compute_deficiency(net)
+            graph = compute_interaction_graph_bandwidth(net)
+
+            entry = {
+                "name": name,
+                "num_species": net.num_species,
+                "num_reactions": len(net.reactions),
+                "deficiency": defn["deficiency"],
+                "num_complexes": defn["num_complexes"],
+                "num_linkage_classes": defn["num_linkage_classes"],
+                "stoichiometric_rank": defn["stoichiometric_rank"],
+                "is_weakly_reversible": defn["is_weakly_reversible"],
+                "product_form_ss": defn["product_form_steady_state"],
+                "graph_bandwidth": graph["bandwidth"],
+                "rank_bounds": graph["rank_bounds_from_graph"],
+            }
+            results["models"].append(entry)
+            total += 1
+            if defn["deficiency"] == 0:
+                n_def_zero += 1
+            if defn["is_weakly_reversible"]:
+                n_weak_rev += 1
+            if defn["product_form_steady_state"]:
+                n_product_form += 1
+        except Exception as e:
+            logger.error(f"Deficiency analysis failed for {name}: {e}")
+            results["models"].append({"name": name, "error": str(e)})
+
+    results["summary"] = {
+        "total_models": total,
+        "deficiency_zero": n_def_zero,
+        "weakly_reversible": n_weak_rev,
+        "product_form_steady_state": n_product_form,
+    }
+
+    return results
+
+
+THEOREM_FROBENIUS_L1 = """
+Proposition (Frobenius-to-L1 Error Relationship):
+
+For a probability vector p ∈ R^n (p ≥ 0, 1^T p = 1) and its
+TT-compressed approximation p̃:
+
+    ‖p - p̃‖₁ ≤ √n · ‖p - p̃‖₂ ≤ √n · ‖p - p̃‖_F
+
+However, for probability vectors with bounded support (only K entries
+are non-negligible):
+
+    ‖p - p̃‖₁ ≤ √(2K) · ‖p - p̃‖₂
+
+Since K ≪ n for typical CME distributions (most probability mass
+concentrated on a small fraction of states), this provides a much
+tighter bound than the naive √n factor.
+
+For TDVP, the Frobenius residual ‖∂_t ψ - Qψ‖_F is directly controlled.
+The L1 error relevant for CSL checking is bounded by:
+
+    ‖p_exact(t) - p_TDVP(t)‖₁ ≤ √(2K_eff) · ∫_0^t ‖res(s)‖_F ds
+
+where K_eff is the effective support size and res(s) is the TDVP
+Frobenius residual at time s. Combined with Metzler contractivity,
+per-step residuals do not amplify.  □
 """

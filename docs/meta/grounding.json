@@ -1,0 +1,187 @@
+{
+  "grounding_version": "1.0",
+  "project": "TN-Check: CSL Model Checking on Tensor-Train CME",
+  "description": "Maps every paper claim to its proof, artifact, or code reference.",
+  "claims": [
+    {
+      "id": "C1",
+      "paper_ref": "Theorem 1 (Error Contraction)",
+      "claim": "For Metzler generators, L1 error is non-increasing under the semigroup: ||e^{Qt}(p - p̃)||₁ ≤ ||p - p̃||₁",
+      "proof": "docs/paper/tool_paper.tex, Appendix A (app:proofs)",
+      "code": "src/tn_check/error/propagation.py::propagate_error()",
+      "test": "tests/test_error.py::test_l1_contraction_metzler",
+      "numerical_verification": "src/tn_check/evaluation/math_rigor.py::verify_contraction()"
+    },
+    {
+      "id": "C2",
+      "paper_ref": "Theorem 2 (Bond Preservation for Axis-Aligned Predicates)",
+      "claim": "Axis-aligned predicates preserve bond dimension: χ(1_Φ ⊙ p) ≤ χ(p)",
+      "proof": "docs/paper/tool_paper.tex, Section 4",
+      "code": "src/tn_check/checker/satisfaction.py::compute_satisfaction_set()",
+      "test": "tests/test_checker.py::test_bond_preservation",
+      "numerical_verification": "src/tn_check/evaluation/math_rigor.py::verify_bond_preservation()"
+    },
+    {
+      "id": "C3",
+      "paper_ref": "Theorem 3 (Linear Predicates)",
+      "claim": "Linear predicates c^T x ≤ b can be evaluated on MPS with bond dimension increase ≤ N",
+      "proof": "docs/paper/tool_paper.tex, Section 4",
+      "code": "src/tn_check/checker/satisfaction.py::linear_predicate_mps()",
+      "test": "tests/test_checker.py::test_linear_predicate",
+      "numerical_verification": "src/tn_check/evaluation/math_rigor.py::verify_linear_predicates()"
+    },
+    {
+      "id": "C4",
+      "paper_ref": "Proposition 1 (Clamping Soundness)",
+      "claim": "Post-truncation clamping of negative entries never increases L1 error: ||clamp(p̃) - p||₁ ≤ ||p̃ - p||₁",
+      "proof": "docs/paper/tool_paper.tex, Section 4",
+      "code": "src/tn_check/tensor/decomposition.py::clamp_negative()",
+      "test": "tests/test_error.py::test_clamping_soundness",
+      "numerical_verification": "src/tn_check/evaluation/math_rigor.py::verify_clamping()"
+    },
+    {
+      "id": "C5",
+      "paper_ref": "Theorem 4 (Complexity)",
+      "claim": "CSL model checking on TT costs O(N·d·χ³·|Φ|) per time step",
+      "proof": "docs/paper/tool_paper.tex, Section 4",
+      "code": "src/tn_check/verifier/pipeline.py",
+      "test": "tests/test_experiments.py",
+      "numerical_verification": "src/tn_check/evaluation/math_rigor.py::verify_complexity()"
+    },
+    {
+      "id": "C6",
+      "paper_ref": "Theorem 5 (Compressibility)",
+      "claim": "Three sufficient conditions for bounded TT rank: (i) product-form stationary distribution, (ii) weak coupling with ε-perturbation, (iii) area-law entanglement entropy S ≤ c·log(χ)",
+      "proof": "docs/paper/tool_paper.tex, Section 4",
+      "code": "src/tn_check/evaluation/compressibility.py::compressibility_theorem()",
+      "test": "tests/test_experiments.py",
+      "numerical_verification": "src/tn_check/evaluation/compressibility.py::run_compressibility_theorem_suite()"
+    },
+    {
+      "id": "C7",
+      "paper_ref": "Proposition 2 (Frobenius-to-L1 Bound)",
+      "claim": "||Δp||₁ ≤ √(2·K_eff) · ∫||res(t)||_F dt, where K_eff is effective support size",
+      "proof": "docs/paper/tool_paper.tex, Section 4",
+      "code": "src/tn_check/error/propagation.py::frobenius_to_l1_bound()",
+      "test": "tests/test_error.py",
+      "numerical_verification": "src/tn_check/integrator/convergence_analysis.py::analyze_tdvp_convergence()"
+    },
+    {
+      "id": "C8",
+      "paper_ref": "Section 5.1 (Scaling Experiments)",
+      "claim": "MPO compression ratio grows exponentially: 6.2× at N=2 to 7.8×10¹³ at N=10",
+      "proof": null,
+      "code": "src/tn_check/experiments.py::run_scaling_experiment()",
+      "test": "tests/test_experiments.py::test_scaling_experiment",
+      "numerical_verification": "Run: python3 -c \"from tn_check.experiments import run_scaling_experiment; run_scaling_experiment()\""
+    },
+    {
+      "id": "C9",
+      "paper_ref": "Section 5.2 (Compression Quality)",
+      "claim": "Bond dimension χ=10 achieves L1 error 1.62×10⁻¹² on gene expression model",
+      "proof": null,
+      "code": "src/tn_check/experiments.py::run_compression_experiment()",
+      "test": "tests/test_experiments.py::test_compression_experiment",
+      "numerical_verification": "Run: python3 -c \"from tn_check.experiments import run_compression_experiment; run_compression_experiment()\""
+    },
+    {
+      "id": "C10",
+      "paper_ref": "Section 5.5 (Cross-Validation)",
+      "claim": "Zero verdict disagreements across 30 CSL properties on 10 models; 22 agree, 8 indeterminate, 0 disagree",
+      "proof": null,
+      "code": "src/tn_check/evaluation/prism_crossvalidation.py::PrismCrossValidator",
+      "test": "tests/test_experiments.py",
+      "numerical_verification": "Run cross-validation suite via PrismCrossValidator.run_full_crossvalidation()"
+    },
+    {
+      "id": "C11",
+      "paper_ref": "Section 5.3 (Compressibility Characterization)",
+      "claim": "Entanglement entropy analysis confirms area-law scaling (S_max < 3.0) across all 20 tested models; deficiency analysis provides rigorous rank-1 guarantees for 8 networks",
+      "proof": null,
+      "code": "src/tn_check/evaluation/compressibility.py::compute_entanglement_profile(), compute_deficiency(), run_deficiency_analysis()",
+      "test": "tests/test_experiments.py",
+      "numerical_verification": "Run: run_compressibility_theorem_suite() and run_deficiency_analysis()"
+    },
+    {
+      "id": "C12",
+      "paper_ref": "Section 5.6 (Cumulative Clamping Bias)",
+      "claim": "Cumulative clamping bias grows linearly (not exponentially) and remains <5% of truncation error",
+      "proof": null,
+      "code": "src/tn_check/error/cumulative.py::CumulativeErrorTracker",
+      "test": "tests/test_error.py::test_cumulative_error_tracking",
+      "numerical_verification": "src/tn_check/error/cumulative.py::CumulativeErrorTracker.long_horizon_bias_analysis()"
+    },
+    {
+      "id": "C13",
+      "paper_ref": "Section 5.4 (TDVP Convergence)",
+      "claim": "TDVP backward error analysis shows Frobenius residuals bounded by O(dt²) with L1-from-Frobenius bound tight within factor 2",
+      "proof": null,
+      "code": "src/tn_check/integrator/convergence_analysis.py::analyze_tdvp_convergence()",
+      "test": "tests/test_experiments.py",
+      "numerical_verification": "Run: analyze_tdvp_convergence() and check frobenius_residual field"
+    },
+    {
+      "id": "C14",
+      "paper_ref": "Section 5.7 (Biomodels)",
+      "claim": "51 biological models compile to valid MPO generators and produce well-formed probability distributions",
+      "proof": null,
+      "code": "src/tn_check/models/biomodels.py, src/tn_check/models/biomodels_extended.py, src/tn_check/models/catalog.py",
+      "test": "tests/test_models.py",
+      "numerical_verification": "All model builders produce valid ReactionNetwork objects with correct stoichiometry"
+    },
+    {
+      "id": "C15",
+      "paper_ref": "Section 5.8 (Mathematical Rigor)",
+      "claim": "Automated numerical verification of all theoretical claims across randomized model instances",
+      "proof": null,
+      "code": "src/tn_check/evaluation/math_rigor.py",
+      "test": "tests/test_experiments.py::test_math_rigor_verification",
+      "numerical_verification": "Run: python3 -c \"from tn_check.evaluation.math_rigor import run_full_rigor_suite; run_full_rigor_suite()\""
+    },
+    {
+      "id": "C16",
+      "paper_ref": "Table 4 (Certificate Pipeline)",
+      "claim": "Certificate pipeline produces SOUND verdicts with total errors ≤ 2.38×10⁻²",
+      "proof": null,
+      "code": "src/tn_check/verifier/pipeline.py::CertifiedVerifier",
+      "test": "tests/test_experiments.py::test_certificate_pipeline",
+      "numerical_verification": "Run: CertifiedVerifier.verify() on gene expression model"
+    },
+    {
+      "id": "C17",
+      "paper_ref": "Theorem 6 (Deficiency-Zero Compressibility)",
+      "claim": "Networks with deficiency δ=0 and weak reversibility have product-form stationary distributions with TT rank 1; provides graph-theoretic sufficient condition for compressibility",
+      "proof": "docs/paper/tool_paper.tex, Section 4 and Appendix A",
+      "code": "src/tn_check/evaluation/compressibility.py::compute_deficiency(), run_deficiency_analysis()",
+      "test": "tests/test_improvements.py",
+      "numerical_verification": "Run: run_deficiency_analysis() on all 51 models"
+    },
+    {
+      "id": "C18",
+      "paper_ref": "Theorem 7 (Unified Error Propagation)",
+      "claim": "Total L1 error ≤ ε_FSP + Σε_TT + √(2K_eff)·Σr_k·Δt with linear (not exponential) accumulation due to Metzler contractivity",
+      "proof": "docs/paper/tool_paper.tex, Section 4 and Appendix A",
+      "code": "src/tn_check/error/propagation.py::unified_error_theorem()",
+      "test": "tests/test_improvements.py",
+      "numerical_verification": "Run: unified_error_theorem() with sample parameters"
+    },
+    {
+      "id": "C19",
+      "paper_ref": "Section 5.6 (Verdict Sensitivity)",
+      "claim": "Clamping bias is always mass-adding; P≥p verdicts may have false TRUE risk, P≤p verdicts are conservative/sound",
+      "proof": null,
+      "code": "src/tn_check/error/cumulative.py::CumulativeErrorTracker.verdict_sensitivity_analysis()",
+      "test": "tests/test_improvements.py",
+      "numerical_verification": "Run verdict_sensitivity_analysis() on tracked evolution"
+    },
+    {
+      "id": "C20",
+      "paper_ref": "Section 5.5 (PRISM/Storm Export)",
+      "claim": "PRISM-format model files (.pm) and CSL property files (.csl) generated for all benchmark models for external validation",
+      "proof": null,
+      "code": "src/tn_check/evaluation/prism_crossvalidation.py::export_storm_benchmark(), run_verdict_comparison_table()",
+      "test": "tests/test_improvements.py",
+      "numerical_verification": "Run: export_storm_benchmark() to generate .pm and .csl files"
+    }
+  ]
+}
