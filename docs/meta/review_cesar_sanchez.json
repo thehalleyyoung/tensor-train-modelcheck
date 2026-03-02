@@ -1,0 +1,41 @@
+{
+  "reviewer": "Cesar Sanchez",
+  "affiliation": "IMDEA Software Institute",
+  "persona": "formal_verification_AI_researcher",
+  "date": "2026-03-02",
+  "scores": {
+    "novelty": 8,
+    "rigor": 6,
+    "empirical_strength": 6,
+    "presentation": 7,
+    "reproducibility": 7,
+    "overall": 7
+  },
+  "summary_of_contributions": "TN-Check introduces CSL model checking directly on tensor-train (MPS) compressed probability vectors for stochastic reaction networks, avoiding materialization of the exponential state space. The system compiles CME generators into matrix product operators, adapts TDVP and Krylov time integration for non-Hermitian generators, and implements three-valued CSL semantics with interval-arithmetic error certification. Key results include 7.8×10¹³× compression at N=10 species and formal error bounds via Metzler-structure-exploiting error contraction.",
+  "strengths": [
+    "The core insight — that CME generators decompose as sums of Kronecker products structurally identical to quantum many-body Hamiltonians — is not new but applying it to formal CSL model checking is genuinely novel. Previous tensor-network work in chemistry focused on simulation; this paper closes the gap to formal verification by implementing CSL operators natively on TT representations.",
+    "The error contraction theorem exploiting Metzler structure is a clean and important result. The key observation that e^{Qt} preserves non-negativity and is sub-stochastic (after FSP truncation) means truncation errors don't amplify through time evolution — a much tighter bound than generic matrix exponential error analysis would yield.",
+    "The three-valued CSL semantics with interval arithmetic is the right design choice. Rather than forcing binary verdicts on uncertain probabilities, returning {TRUE, FALSE, INDETERMINATE} correctly handles the fundamental tension between compression error and verification precision. This is sound by construction.",
+    "The axis-aligned predicate theorem (rank-1 TT masks preserving MPO bond dimension) and the carry-based linear predicate construction are elegant technical contributions that make CSL checking on TT representations practical rather than merely theoretically possible.",
+    "The 11-check independent verifier with JSON trace serialization demonstrates a commitment to auditability. The separation between the computational engine and the verification kernel follows best practices in certified tool design."
+  ],
+  "weaknesses": [
+    "The compressibility hypothesis is the elephant in the room: the entire approach assumes CME probability distributions have low tensor-train rank. This is an empirical observation, not a theorem. The paper provides no sufficient conditions under which biological reaction networks produce low-rank distributions. Without this, the approach could fail unpredictably on new models.",
+    "The TDVP adaptation for non-Hermitian CME generators is stated but not rigorously justified. TDVP was developed for Hermitian Hamiltonians in quantum physics; the non-Hermitian setting introduces subtleties (non-unitary time evolution, non-orthogonal tangent spaces) that are mentioned but not formally analyzed. The error bounds for TDVP in the non-Hermitian case are weaker than the paper suggests.",
+    "The benchmark suite consists of 13 biological models, but the paper does not compare against PRISM or Storm on the same models. Without direct comparison of verification results (not just scalability), it is impossible to assess correctness on real biological models. The birth-death and gene expression validations are necessary but not sufficient.",
+    "The fixpoint iteration for unbounded-until properties lacks convergence guarantees for slowly-mixing CTMCs. The fallback to bounded-until with large time bounds is a heuristic that undermines the formal verification claims. The paper should characterize when fixpoint iteration converges and when the fallback is needed.",
+    "The post-truncation clamping of negative entries introduces a systematic bias toward non-negativity. While the error bound is correct (≤ ε_trunc), repeated clamping across many time steps could accumulate bias that is not tracked by the per-step bounds. A cumulative bias analysis is needed."
+  ],
+  "questions_for_authors": [
+    "Under what conditions on the reaction network structure do CME distributions have provably low tensor-train rank? Are there known classes of networks (e.g., weakly coupled, modular) where area-law-like bounds apply?",
+    "How does the approach handle multi-scale stiffness (fast and slow reactions)? Stiff systems may require very high bond dimensions to represent transient states, even if the steady-state is low-rank.",
+    "What is the computational overhead of the 11-check verifier relative to the model-checking computation? If verification is expensive, it may not be practical for iterative analysis workflows.",
+    "For nested CSL formulas, how large is the INDETERMINATE region in practice? If most states are classified as INDETERMINATE, the three-valued result is uninformative."
+  ],
+  "missing_references": [
+    "Kwiatkowska, Norman, and Parker (2007) — 'Stochastic model checking' (SFM). Foundational reference for CSL model checking that should frame the contribution.",
+    "Kazeev and Schwab (2018) — 'Quantized tensor-structured finite elements' (Computer Methods in Applied Mechanics and Engineering). Key reference for tensor-train methods in PDE discretization.",
+    "Hegland, Burden, Santoso, MacNamara, and Booth (2007) — 'A solver for the stochastic master equation applied to gene regulatory networks' (Journal of Computational and Applied Mathematics). Early tensor-based CME solver."
+  ],
+  "recommendation": "accept"
+}

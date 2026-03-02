@@ -1,0 +1,5 @@
+{
+  "category": "B",
+  "key_quote": "The TT rank assumptions need deeper theoretical characterization — conditions under which low rank is guaranteed are unclear.",
+  "rationale": "This project already scores 7.33/10 overall with highest novelty (7.67) and rigor (7.67). Reviewers recommend Accept. The remaining gaps are about depth: TT rank characterization, PRISM comparison, spectral gap robustness, and testing on non-standard biological models. These are addressable completeness issues, not novelty concerns."
+}

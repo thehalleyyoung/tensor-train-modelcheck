@@ -1,0 +1,41 @@
+{
+  "reviewer": "Vasco Vasconcelos",
+  "affiliation": "University of Lisbon",
+  "persona": "probabilistic_models_and_formal_methods_expert",
+  "date": "2026-03-02",
+  "scores": {
+    "novelty": 8,
+    "rigor": 7,
+    "empirical_strength": 6,
+    "presentation": 7,
+    "reproducibility": 7,
+    "overall": 7
+  },
+  "summary_of_contributions": "TN-Check implements CSL model checking for stochastic reaction networks by operating natively on tensor-train compressed probability vectors. The paper presents error contraction theorems exploiting the Metzler structure of CME generators, three-valued CSL semantics with interval arithmetic for sound verification under compression error, and empirical validation on 13 biological models with 7.8×10¹³× compression.",
+  "strengths": [
+    "The error contraction theorem exploiting Metzler structure (Theorem 1) is the paper's strongest theoretical contribution. The proof that e^{Qt} being stochastic/sub-stochastic means truncation errors contract under time evolution is elegant and provides much tighter bounds than generic matrix exponential error analysis. This is a genuine advance in the numerical analysis of compressed Markov chain representations.",
+    "The O(N) complexity separation (Theorem 4) between TT-based and explicit verification for modular CTMCs is a strong theoretical result. The proof that Kronecker-structured CME generators admit efficient TT operations establishes a formal complexity advantage, not just an empirical speedup.",
+    "The three-valued CSL semantics is mathematically well-founded. The interval-arithmetic approach correctly propagates uncertainty through Boolean and probabilistic operators, producing sound verdicts even when compression introduces numerical error. This is the right approach for certified probabilistic model checking.",
+    "The carry-based TT construction for linear predicates (Theorem 3, bond dimension ≤ R+1) is a clever technique that enables efficient evaluation of weighted sums over molecular species populations, which are common in biological property specifications.",
+    "The birth-death validation achieving L1 error 0.0 (exact Poisson recovery) and the gene expression accuracy of L1 = 1.62×10⁻¹² provide strong evidence that the numerical implementation is correct for well-understood test cases."
+  ],
+  "weaknesses": [
+    "The fundamental limitation — that tensor-train compressibility of CME distributions is an empirical observation rather than a proven property — is acknowledged but insufficiently analyzed. The paper should provide at least heuristic arguments for when low-rank structure is expected (e.g., weakly coupled subsystems, product-form steady states) and when it is not (highly entangled multimodal distributions).",
+    "The FSP truncation interaction with tensor-train compression is not formally analyzed. FSP bounds the state space to a finite region, but the truncation boundary choice affects both accuracy and compressibility. The paper uses standard FSP bounds from Munsky and Khammash (2006) but does not analyze how FSP error compounds with TT truncation error.",
+    "The steady-state solver based on DMRG is presented without convergence guarantees for non-Hermitian operators. DMRG convergence theory relies on the variational principle (energy minimization for ground states), which does not apply to the dominant eigenvector of a non-Hermitian generator. The solver may converge to a non-physical solution without detection.",
+    "The paper does not address time-varying reaction rates, which are common in biological systems with external signals, circadian rhythms, or pharmacokinetic forcing. Extending the framework to time-inhomogeneous CTMCs would require time-dependent MPOs, which adds both theoretical and computational complexity.",
+    "The comparison with PRISM and Storm is limited to scalability curves rather than verification accuracy. For the overlapping tractable range (small N), the paper should report verdict-by-verdict agreement with these established tools to build confidence in correctness."
+  ],
+  "questions_for_authors": [
+    "Can you provide sufficient conditions on the reaction network topology that guarantee low tensor-train rank of the CME solution? For example, do tree-structured networks always produce low-rank distributions?",
+    "How does the approach handle multimodal distributions (e.g., bistable gene switches)? Bimodal probability distributions in high dimensions may require high bond dimensions to represent accurately.",
+    "What is the relationship between the FSP truncation error and the TT truncation error? Can these be jointly optimized, or must they be controlled independently?",
+    "For the Uniformization-based bounded-until checking, what is the effective condition number of the uniformized matrix? Poor conditioning could amplify TT truncation errors."
+  ],
+  "missing_references": [
+    "Munsky and Khammash (2006) — 'The finite state projection algorithm for the solution of the chemical master equation' (Journal of Chemical Physics). Foundational FSP reference that should be more prominently discussed.",
+    "Jahnke and Huisinga (2007) — 'Solving the chemical master equation for monomolecular reaction systems analytically' (Journal of Mathematical Biology). Analytical solutions for validation.",
+    "Schollwöck (2011) — 'The density-matrix renormalization group in the age of matrix product states' (Annals of Physics). Comprehensive MPS/DMRG reference that should underpin the tensor-network methodology."
+  ],
+  "recommendation": "accept"
+}

@@ -7,6 +7,8 @@ Provides parameterized model builders for:
 - MAPK cascade (modular, multi-species)
 - Birth-death (simple, 1 species)
 - Schlögl model (bistable, 1 species)
+- p53-MDM2, Goodwin oscillator, Lac operon, Lotka-Volterra (biomodels)
+- Viral infection, Calcium signaling, Apoptosis, Dual phosphorylation
 """
 
 from tn_check.models.library import (
@@ -20,6 +22,20 @@ from tn_check.models.library import (
     sir_epidemic,
     michaelis_menten_enzyme,
     multi_species_cascade,
+    mapk_cascade,
+    gene_regulatory_network,
+    multi_gene_expression,
+)
+
+from tn_check.models.biomodels import (
+    p53_mdm2,
+    goodwin_oscillator,
+    lac_operon,
+    lotka_volterra,
+    viral_infection,
+    calcium_signaling,
+    apoptosis_decision,
+    dual_phosphorylation,
 )
 
 __all__ = [
@@ -33,4 +49,15 @@ __all__ = [
     "sir_epidemic",
     "michaelis_menten_enzyme",
     "multi_species_cascade",
+    "mapk_cascade",
+    "gene_regulatory_network",
+    "multi_gene_expression",
+    "p53_mdm2",
+    "goodwin_oscillator",
+    "lac_operon",
+    "lotka_volterra",
+    "viral_infection",
+    "calcium_signaling",
+    "apoptosis_decision",
+    "dual_phosphorylation",
 ]

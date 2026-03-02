@@ -1,0 +1,41 @@
+{
+  "reviewer": "Roderick Bloem",
+  "affiliation": "Graz University of Technology",
+  "persona": "machine_learning_specification_safety_researcher",
+  "date": "2026-03-02",
+  "scores": {
+    "novelty": 7,
+    "rigor": 6,
+    "empirical_strength": 5,
+    "presentation": 7,
+    "reproducibility": 7,
+    "overall": 6
+  },
+  "summary_of_contributions": "TN-Check extends probabilistic model checking to large-scale stochastic reaction networks by operating directly on tensor-train compressed representations. The system implements CSL model checking natively on MPS/MPO structures, with three-valued semantics for soundness under compression error, and produces independently verifiable error certificates.",
+  "strengths": [
+    "The scalability potential is dramatic. The 7.8×10¹³× compression ratio at N=10 species demonstrates that the approach can represent probability distributions over state spaces far beyond explicit methods. If the compression remains effective at N=50–100 (the paper's target), this would open entirely new classes of biological systems to formal verification.",
+    "The CME-to-MPO compiler handling mass-action, Hill, and Michaelis-Menten kinetics with SBML import provides a practical entry point for biologists who already use standard modeling formats. This bridges the gap between the biological modeling community and formal verification tools.",
+    "The adaptive bond-dimension controller using greedy-doubling is a pragmatic engineering choice that avoids the need for manual bond dimension tuning. Automatic adaptation to the problem's intrinsic complexity makes the tool more accessible to non-experts.",
+    "The pre-build validation gate (>60% of adversarial BioModels achieving χ ≤ 200 at ε=10⁻⁴) is an excellent quality assurance mechanism. Requiring the tool to pass empirical validation before claiming full scope prevents overpromising.",
+    "The connection between tensor-network methods and CSL model checking is a genuine contribution to the model checking community, which has largely not adopted these numerical techniques from quantum physics."
+  ],
+  "weaknesses": [
+    "The paper does not compare verification results against established model checkers (PRISM, Storm, STAMINA) on the same models. Scalability claims are meaningless if the verification results are incorrect. At minimum, the paper should verify that TN-Check and PRISM agree on all CSL properties for small-enough models where both tools can run.",
+    "The supported CSL fragment and its limitations are not clearly delineated. Which CSL operators are fully supported with error bounds, which are partially supported, and which are unsupported? The nested CSL case with three-valued semantics is particularly unclear regarding practical utility.",
+    "The non-Hermitian TDVP adaptation is a significant technical concern. TDVP convergence proofs rely on the variational principle for Hermitian operators, which does not apply to CME generators. The paper cites Ceruti-Lubich-Walach (2024) but does not verify that their analysis covers the specific class of non-Hermitian operators arising in CME.",
+    "The clamping strategy for negative probabilities is a necessary hack that introduces systematic error. The paper proves per-step bounds but does not analyze cumulative error over many time steps. For time-bounded CSL properties requiring many integration steps, cumulative clamping error could dominate.",
+    "The 13-model benchmark library is small relative to the thousands of models in the BioModels database. The paper should demonstrate the tool on a broader sample to establish generality."
+  ],
+  "questions_for_authors": [
+    "Have you validated TN-Check's CSL verification results against PRISM or Storm on small models (N ≤ 5)? How many CSL properties have been cross-validated?",
+    "What is the typical bond dimension required for MAPK cascade models (N=22)? Does the adaptive controller converge, and what is the final compression ratio?",
+    "How does the approach handle reactions with stoichiometry >1 (e.g., 2A → B)? Do these create higher-rank MPO terms that degrade compression?",
+    "Can the three-valued semantics be refined iteratively by increasing bond dimension in the INDETERMINATE region? This would provide a natural CEGAR-like loop for precision refinement."
+  ],
+  "missing_references": [
+    "Henzinger, Mateescu, and Wolf (2011) — 'Sliding window abstraction for infinite Markov chains' (CAV). Relevant abstraction technique for infinite-state CTMC verification.",
+    "Dehnert, Junges, Katoen, and Volk (2017) — 'A Storm is Coming: A Modern Probabilistic Model Checker' (CAV). The primary competing tool for CSL model checking.",
+    "Dolgov and Savostyanov (2014) — 'Alternating minimal energy methods for linear systems in higher dimensions' (SIAM Journal on Scientific Computing). Relevant TT-based linear algebra method."
+  ],
+  "recommendation": "weak_accept"
+}

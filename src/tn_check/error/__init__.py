@@ -7,6 +7,7 @@ Implements:
 - Error propagation through Markov semigroup (Theorem 1)
 - Per-bond truncation error tracking
 - Richardson extrapolation for convergence estimation
+- Cumulative clamping error analysis across time steps
 """
 
 from tn_check.error.certification import (
@@ -28,6 +29,12 @@ from tn_check.error.propagation import (
     csl_error_propagation,
     compose_fsp_tt_errors,
 )
+from tn_check.error.cumulative import (
+    CumulativeErrorTracker,
+    CumulativeErrorAnalysis,
+    StepErrorRecord,
+    run_cumulative_error_experiment,
+)
 
 __all__ = [
     "ErrorCertificate",
@@ -45,4 +52,8 @@ __all__ = [
     "semigroup_error_bound",
     "csl_error_propagation",
     "compose_fsp_tt_errors",
+    "CumulativeErrorTracker",
+    "CumulativeErrorAnalysis",
+    "StepErrorRecord",
+    "run_cumulative_error_experiment",
 ]

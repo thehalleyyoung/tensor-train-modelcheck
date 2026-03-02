@@ -37,8 +37,8 @@ Birth-death L1 error: 0.0
 | Gene expression accuracy at χ=10 | L1 = 1.62×10⁻¹² |
 | Compression ratio at N=10 species | 7.8×10¹³× |
 | Certificate verification | 11/11 checks SOUND |
-| Tests | 161 passing |
-| Biological models | 13 |
+| Tests | 205 passing (161 original + 44 PATH B) |
+| Biological models | 21 (13 original + 8 from BioModels) |
 
 ## Theoretical Contributions
 
@@ -59,6 +59,22 @@ Birth-death L1 error: 0.0
 5. **Theorem 4** (Complexity separation): TT-based verification is O(N)
    vs explicit O(M^N).
 
+6. **Theorem 5** (Weak coupling compressibility): TT rank bounded by
+   coupling strength between species.
+
+## Cross-Validation & Rigor
+
+- **PRISM cross-validation**: Verdicts compared against dense reference
+  solutions; PRISM-format model export for external validation.
+- **Compressibility analysis**: Coupling graph analysis predicts when
+  TT compression is effective.
+- **Cumulative error tracking**: Per-step truncation + clamping errors
+  tracked with provable linear accumulation bounds.
+- **TDVP convergence analysis**: Honest scoping of non-Hermitian
+  limitations with empirical convergence monitoring.
+- **Mathematical rigor verification**: Automated numerical checks for
+  all 6 theoretical claims across randomized instances.
+
 ## Architecture
 
 ```
@@ -73,11 +89,13 @@ src/tn_check/
 ├── tensor/         TT/MPS Engine
 │   MPS/MPO data structures, SVD compression, canonical forms
 ├── error/          Error Certification
-│   Truncation tracking, clamping bounds (Prop. 1), Lemma 2
+│   Truncation tracking, clamping bounds (Prop. 1), Lemma 2,
+│   cumulative error tracker
 ├── verifier/       Independent Verifier
-│   11 soundness checks, JSON trace serialization
-├── models/         Model Library (13 biological models)
-├── evaluation/     Benchmarks & PRISM comparison
+│   11 soundness checks, JSON trace serialization,
+│   mathematical rigor verification suite
+├── models/         Model Library (21 biological models)
+├── evaluation/     Benchmarks, PRISM cross-validation, compressibility analysis
 ├── solver/         Dense reference solver
 ├── adaptive/       Adaptive bond-dimension controller
 ├── ordering/       Species ordering strategies
@@ -89,8 +107,9 @@ src/tn_check/
 ## Testing
 
 ```bash
-python3 -m pytest tests/ -v           # 161 tests
+python3 -m pytest tests/ -v           # 205 tests
 python3 -m pytest tests/ --tb=short   # Quick pass/fail
+python3 -m pytest tests/test_path_b.py -v  # PATH B tests only
 ```
 
 ## References
