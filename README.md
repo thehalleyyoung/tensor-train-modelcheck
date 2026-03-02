@@ -1,143 +1,456 @@
 # TN-Check: Certified CSL Model Checking on Tensor-Train CME States
 
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)]()
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue)]()
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)]()
+
 **TN-Check** verifies Continuous Stochastic Logic (CSL) properties on stochastic
 reaction networks by operating directly on tensor-train (MPS) compressed
 probability vectors — never materializing the exponential state space.
 
-## 30-Second Quickstart
+---
+
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [CLI Reference](#cli-reference)
+- [Network File Formats](#network-file-formats) (YAML · JSON · SBML)
+- [Reaction Kinetics](#reaction-kinetics) (Mass-Action · Hill · Michaelis-Menten)
+- [CSL Property Syntax](#csl-property-syntax)
+- [Output Formats](#output-formats)
+- [Tensor-Train Algorithm](#tensor-train-algorithm)
+- [Theoretical Results](#theoretical-results)
+- [Examples](#examples)
+- [Python API](#python-api)
+- [Architecture](#architecture)
+- [Testing](#testing)
+- [References](#references)
+
+---
+
+## Quick Start
 
 ```bash
 pip install -e ".[dev]"
-python3 -c "
-from tn_check.experiments import run_birth_death_experiment, run_compression_accuracy_experiment
-bd = run_birth_death_experiment()
-print(f'Birth-death L1 error: {bd[\"l1_error\"]}')
-ca = run_compression_accuracy_experiment()
-for r in ca['compression_results']:
-    print(f'  chi={r[\"bond_dim\"]}: L1={r[\"l1_error\"]:.2e}')
-"
+tn-check check examples/gene_expression.yaml "P>=0.9 [true U<=10.0 X_0 >= 3]"
+tn-check check examples/gene_expression.yaml --steady-state mRNA 3 -f json
+tn-check check-network examples/birth_death.sbml
 ```
 
-Expected output:
+## Installation
+
+Requires Python 3.10+, NumPy, SciPy, Click, PyYAML.
+
+```bash
+git clone <repository-url>
+cd csl-model-checking-on-tensor-train-cme
+pip install -e ".[dev]"
+tn-check --version
 ```
-Birth-death L1 error: 0.0
-  chi=1: L1=2.35e-01
-  chi=2: L1=4.71e-02
-  chi=5: L1=4.88e-05
-  chi=10: L1=1.62e-12
-  chi=20: L1=1.62e-12
-  chi=50: L1=1.62e-12
+
+---
+
+## CLI Reference
+
+### `tn-check check`
+
+Check a CSL property against a reaction network.
+
+```
+tn-check check [OPTIONS] NETWORK_FILE [PROPERTY]
 ```
 
-## Key Results
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-chi`, `--max-bond-dim` | 200 | Maximum TT bond dimension |
+| `-o`, `--output PATH` | — | Write JSON result to file |
+| `-f`, `--output-format` | text | Output format: `text`, `json`, `csv` |
+| `--steady-state SPECIES THRESH` | — | Shorthand: S>=0.5 [X_i >= THRESH] |
+| `--extinction SPECIES` | — | Shorthand: P>=0.5 [true U<=100 X_i <= 0] |
+| `-v`, `--verbose` | — | Enable verbose logging |
 
-| Result | Value |
-|--------|-------|
-| Birth-death L1 error | 0.0 (exact Poisson recovery) |
-| Gene expression accuracy at χ=10 | L1 = 1.62×10⁻¹² |
-| Compression ratio at N=10 species | 7.8×10¹³× |
-| Certificate verification | 11/11 checks SOUND |
-| Cross-validation verdicts | 0 disagreements across 30 CSL properties on 10 models |
-| Tests | 205+ passing |
-| Biological models | 51 (13 core + 12 extended + 26 broad coverage) |
-| Theoretical results | 9 (7 theorems + 2 propositions) |
+```bash
+tn-check check examples/gene_expression.yaml "P>=0.9 [true U<=10.0 X_0 >= 3]"
+tn-check check examples/gene_expression.yaml --steady-state mRNA 3 -f json
+tn-check check examples/toggle_switch.yaml --extinction X1
+```
 
-## Theoretical Contributions
+### `tn-check verify`
 
-1. **Theorem 1** (Error contraction): Metzler semigroup contractivity
-   ensures per-step truncation errors accumulate linearly, not exponentially.
+Like `check`, but also produces a formal verification certificate.
 
-2. **Theorem 2** (Bond-dimension preservation): Axis-aligned predicates
-   produce rank-1 TT masks; `χ(1_Φ ⊙ p) ≤ χ(p)`.
+```
+tn-check verify [OPTIONS] NETWORK_FILE [PROPERTY]
+```
 
-3. **Theorem 3** (Linear predicates): Carry-based TT construction with
-   bond dimension ≤ R+1.
+Same options as `check`, plus `-c`/`--certificate PATH` (default: `certificate.json`).
 
-4. **Theorem 4** (Complexity separation): TT-based verification is O(N·d·χ³)
-   vs explicit O(d^N).
+```bash
+tn-check verify examples/toggle_switch.yaml "S>=0.5 [X_0 >= 10]" -c cert.json
+```
 
-5. **Theorem 5** (Compressibility): Three sufficient conditions for bounded
-   TT rank — product-form equilibria, weak coupling with ε-perturbation,
-   and area-law entanglement entropy S ≤ c·log(χ). Verified via entanglement
-   entropy computation across all 20+ models.
+### `tn-check info`
 
-6. **Theorem 6** (Deficiency-zero compressibility): Networks with deficiency
-   δ=0 and weak reversibility have product-form stationary distributions
-   (TT rank 1). Provides a purely graph-theoretic sufficient condition for
-   compressibility — computed from reaction structure alone, without solving
-   the CME. Based on Feinberg (1972) and Anderson et al. (2010).
+Display network statistics (species, reactions, state space size).
 
-7. **Theorem 7** (Unified error propagation): Combines FSP truncation,
-   TT-SVD truncation, and TDVP projection into a single certified L1 bound:
-   `ε_total = ε_FSP + Σε_TT + √(2K_eff)·Σr_k·Δt`. All terms accumulate
-   linearly due to Metzler contractivity. Clamping does not add to the bound.
+```bash
+tn-check info examples/enzyme_kinetics.yaml
+```
 
-8. **Proposition 1** (Clamping soundness): Post-truncation clamping of
-   negative entries *never increases* L1 error — proved via index-wise
-   comparison (Lemma 2), not triangle inequality.
+### `tn-check init-network`
 
-9. **Proposition 2** (Frobenius-to-L1 bound): Converts TDVP Frobenius
-   residuals to CSL-relevant L1 error: `‖Δp‖₁ ≤ √(2K_eff) · ∫‖res‖_F dt`.
+Generate a starter YAML template with mass-action, Hill, and Michaelis-Menten examples.
 
-## Cross-Validation & Verification
+```bash
+tn-check init-network my_network.yaml
+```
 
-- **Dense cross-validation**: 30 CSL properties across 10 models — zero
-  verdict disagreements; 22 agree, 8 indeterminate (sound), 0 disagree.
-  PRISM-format model export (`.pm` + `.csl`) for external validation with
-  PRISM/Storm. Verdict comparison table via `run_verdict_comparison_table()`.
-- **Deficiency analysis**: Graph-theoretic compressibility pre-check on all
-  51 models; 15+ have deficiency zero, 8 are also weakly reversible.
-- **Compressibility theorem**: Entanglement entropy computation (von Neumann
-  + Rényi-2) across all bipartitions; three sufficient conditions checked
-  per model with formal justification.
-- **Verdict-sensitivity analysis**: Asymmetric clamping bias effect on
-  P≥p (false TRUE risk) vs P≤p (conservative/sound) verdicts.
-- **Cumulative bias tracking**: Per-step clamping bias rates with trend
-  detection (growing/stable/decaying) and long-horizon projections.
-- **TDVP convergence**: Frobenius residual tracking during evolution with
-  L1-from-Frobenius bound; backward error analysis; conservation error
-  monitoring.
-- **Spectral gap circularity**: Weyl's theorem application to bound the
-  spectral gap from truncated operators.
-- **Mathematical rigor suite**: Automated numerical verification of all
-  9 theoretical claims across randomized instances.
+### `tn-check check-network`
+
+Validate a network file (YAML, JSON, or SBML) without running model checking.
+
+```bash
+tn-check check-network examples/gene_expression.yaml
+tn-check check-network examples/birth_death.sbml
+```
+
+---
+
+## Network File Formats
+
+### YAML Format
+
+```yaml
+name: my_model
+description: "Optional description"
+species:
+  - name: A
+    max_copy_number: 50    # FSP truncation bound (default: 50)
+    initial_count: 0
+reactions:
+  - name: production
+    reactants: {}
+    products: {A: 1}
+    rate_constant: 1.0
+    kinetics: mass_action
+```
+
+Required: `species[].name`, `reactions[].name`. See `examples/` for complete files.
+
+### JSON Format
+
+Same structure as YAML, encoded as JSON:
+
+```json
+{
+  "name": "my_model",
+  "species": [{"name": "A", "max_copy_number": 50, "initial_count": 0}],
+  "reactions": [{
+    "name": "production", "reactants": {}, "products": {"A": 1},
+    "rate_constant": 1.0, "kinetics": "mass_action"
+  }]
+}
+```
+
+### SBML Format
+
+TN-Check imports [SBML](http://sbml.org/) (Level 2/3) XML files — the
+standard format for biological models. Files with `.xml` or `.sbml`
+extensions are auto-detected.
+
+```xml
+<sbml xmlns="http://www.sbml.org/sbml/level3/version2/core" level="3" version="2">
+  <model id="birth_death">
+    <listOfSpecies>
+      <species id="X" initialAmount="10"/>
+    </listOfSpecies>
+    <listOfReactions>
+      <reaction id="birth" reversible="false">
+        <listOfProducts>
+          <speciesReference species="X" stoichiometry="1"/>
+        </listOfProducts>
+        <kineticLaw>
+          <listOfLocalParameters>
+            <localParameter id="k" value="1.0"/>
+          </listOfLocalParameters>
+        </kineticLaw>
+      </reaction>
+    </listOfReactions>
+  </model>
+</sbml>
+```
+
+**Import details:**
+- Initial amounts are rounded to integers for the discrete CME.
+- Mass-action rates are extracted from kinetic law parameters (`k`, `rate`, `c`, `kf`, etc.).
+- Hill kinetics are auto-detected when parameters `Vmax`, `K`/`K_half`, and `n`/`hill` are present.
+- Reversible reactions generate forward + reverse pairs automatically.
+- Use models from [BioModels](https://www.ebi.ac.uk/biomodels/) or export from COPASI, CellDesigner, etc.
+
+---
+
+## Reaction Kinetics
+
+### Mass-Action Kinetics
+
+Propensity = rate constant × falling factorials of reactant copy numbers.
+
+```yaml
+- name: binding
+  reactants: {E: 1, S: 1}    # a(n) = k · n_E · n_S
+  products: {ES: 1}
+  rate_constant: 0.01
+  kinetics: mass_action
+```
+
+| Order | Reactants | Propensity |
+|-------|-----------|------------|
+| 0th | `{}` | k |
+| 1st | `{A: 1}` | k · n_A |
+| 2nd | `{A: 1, B: 1}` | k · n_A · n_B |
+| 2nd (homodimer) | `{A: 2}` | k · n_A · (n_A-1) / 2 |
+
+### Hill Kinetics
+
+Cooperative binding: `a(n) = V_max · n^h / (K^h + n^h)` (activation) or
+`V_max · K^h / (K^h + n^h)` (repression).
+
+```yaml
+- name: regulated
+  products: {B: 1}
+  kinetics: hill
+  hill:
+    regulator: A
+    v_max: 10.0
+    k_half: 5.0
+    hill_coefficient: 2.0
+    activation: true    # false for repression
+```
+
+### Michaelis-Menten Kinetics
+
+Enzymatic: `a(n_S, n_E) = k_cat · n_E · n_S / (K_M + n_S)`.
+
+```yaml
+- name: enzymatic
+  kinetics: michaelis_menten
+  michaelis_menten:
+    substrate: S
+    product: P
+    enzyme: E
+    k_cat: 1.0
+    k_m: 10.0
+```
+
+---
+
+## CSL Property Syntax
+
+Species are referenced by index (`X_0`, `X_1`, …) in network definition order.
+
+**Atomic propositions:** `X_0 >= 5`, `X_1 < 10`, `X_2 == 0`
+
+**Boolean:** `true`, `!phi` (negation), `phi1 & phi2` (conjunction)
+
+**Probability operator:** `P~p [path]` where `~` ∈ {`>=`, `>`, `<=`, `<`}
+
+```
+P>=0.9 [true U<=10.0 X_0 >= 3]     # prob ≥ 0.9 that X_0 reaches 3 within t=10
+P>=0.5 [X_0 >= 1 U<=5.0 X_1 >= 2]  # bounded until with precondition
+P<0.01 [true U X_0 >= 100]          # unbounded until
+P>=0.9 [F<=10.0 X_0 >= 3]           # eventually (sugar for true U<=t)
+```
+
+**Steady-state operator:** `S~p [phi]`
+
+```
+S>=0.5 [X_0 >= 10]    # long-run prob of X_0 ≥ 10 is at least 0.5
+```
+
+**CLI shorthands** (instead of full CSL):
+
+```bash
+--steady-state mRNA 5    # → S>=0.5 [X_i >= 5]   (species by name)
+--extinction Protein     # → P>=0.5 [true U<=100.0 X_i <= 0]
+```
+
+---
+
+## Output Formats
+
+Use `--output-format` / `-f` with `check` or `verify`:
+
+- **text** (default): human-readable table
+- **json**: machine-readable JSON object
+- **csv**: single-row CSV with header
+
+```bash
+tn-check check network.yaml "S>=0.5 [X_0 >= 3]" -f json
+tn-check check network.yaml "S>=0.5 [X_0 >= 3]" -f csv
+```
+
+---
+
+## Tensor-Train Algorithm
+
+### Overview
+
+The CME describes time evolution of probability over discrete molecular
+counts: `dp/dt = Q · p`. For N species with up to d counts each, the
+state space is d^N. TN-Check avoids this exponential blow-up using
+**tensor-train decomposition** (MPS):
+
+```
+p(n₁, …, nₙ) = G₁[n₁] · G₂[n₂] · … · Gₙ[nₙ]
+```
+
+Each `Gₖ` is a (χₖ₋₁ × χₖ) matrix. Bond dimension χ gives O(N·d·χ²)
+parameters instead of d^N.
+
+### Pipeline
+
+1. **CME Compilation**: Each reaction → MPO. Mass-action propensities factor
+   into rank-1 per-species tensors. Full generator Q = sum of per-reaction MPOs.
+
+2. **TT Compression**: Truncated SVD sweeps. Eckart-Young guarantees error
+   equals sum of discarded singular values. Non-negative clamping preserves
+   probability semantics (Proposition 1).
+
+3. **TDVP Integration**: 1-site (fixed rank) or 2-site (adaptive rank) TDVP
+   projects dynamics onto the TT manifold. Stiffness-aware step-size adaptation.
+
+4. **Error Certification**: Theorem 7 combines FSP truncation (ε_FSP),
+   TT-SVD truncation (ε_TT), and TDVP projection (ε_TDVP) into:
+   `ε_total = ε_FSP + Σε_TT + √(2K_eff) · Σrₖ · Δt`
+
+   Three-valued semantics: if `[p-ε, p+ε]` straddles the threshold, verdict
+   is INDETERMINATE rather than a potentially incorrect TRUE/FALSE.
+
+---
+
+## Theoretical Results
+
+| # | Result | Statement |
+|---|--------|-----------|
+| T1 | Error contraction | Metzler contractivity → linear (not exponential) error growth |
+| T2 | Bond preservation | Axis-aligned predicates: rank-1 TT masks, χ preserved |
+| T3 | Linear predicates | Carry-based TT with bond dim ≤ R+1 |
+| T4 | Complexity | O(N·d·χ³) vs explicit O(d^N) |
+| T5 | Compressibility | Product-form, weak coupling, area-law → bounded rank |
+| T6 | Deficiency-zero | δ=0 + weak reversibility → TT rank 1 |
+| T7 | Unified error | ε_FSP + Σε_TT + √(2K_eff)·Σrₖ·Δt |
+| — | FSP bound | 1 - ‖e^{Q·t}p₀‖₁ ≤ 1 - e^{-λ_exit·t} |
+| — | M-χ coupling | TT rank grows ≤ log(M) with FSP dimension |
+| P1 | Clamping | Clamping negatives never increases L1 error |
+| P2 | Frob→L1 | Converts TDVP residuals to L1 error |
+
+---
+
+## Examples
+
+### Gene Expression (2 species)
+
+```bash
+tn-check info examples/gene_expression.yaml
+tn-check check examples/gene_expression.yaml "P>=0.9 [true U<=10.0 X_0 >= 3]"
+tn-check check examples/gene_expression.yaml --steady-state mRNA 3 -f json
+```
+
+### Toggle Switch (Hill kinetics, bistable)
+
+```bash
+tn-check verify examples/toggle_switch.yaml "S>=0.3 [X_0 >= 30]" -c cert.json
+```
+
+### Enzyme Kinetics (4 species)
+
+```bash
+tn-check check examples/enzyme_kinetics.yaml "P>=0.9 [true U<=20.0 X_3 >= 5]"
+```
+
+### SBML Models
+
+```bash
+tn-check check-network model.sbml
+tn-check check model.sbml "P>=0.9 [true U<=10.0 X_0 >= 5]"
+tn-check info model.xml
+```
+
+---
+
+## Python API
+
+```python
+from tn_check.network_loader import load_network
+from tn_check.cme import compile_network_to_mpo, deterministic_initial_state
+from tn_check.checker.csl_ast import parse_csl
+from tn_check.checker.model_checker import CSLModelChecker
+
+net = load_network("examples/gene_expression.yaml")  # or .sbml
+mpo = compile_network_to_mpo(net, max_bond_dim=200)
+init = deterministic_initial_state(net)
+formula = parse_csl("P>=0.9 [true U<=10.0 X_0 >= 3]")
+checker = CSLModelChecker(mpo, physical_dims=tuple(net.physical_dims))
+result = checker.check(formula, init, max_bond_dim=200)
+print(f"Verdict: {result.verdict.value}, Error: {result.total_error:.2e}")
+```
+
+Built-in models and experiments:
+
+```python
+from tn_check.experiments import run_birth_death_experiment
+from tn_check.evaluation.graph_predictors import predict_compressibility_graph
+from tn_check.models.library import gene_expression
+
+result = run_birth_death_experiment()
+pred = predict_compressibility_graph(gene_expression())
+print(f"Predicted rank: {pred.predicted_rank_bound}, score: {pred.compressibility_score:.2f}")
+```
+
+See [API.md](API.md) for the full reference.
+
+---
 
 ## Architecture
 
 ```
 src/tn_check/
-├── cme/            CME compiler (ReactionNetwork → MPO generator, FSP bounds)
-├── checker/        CSL checker (parser, bounded/unbounded until, fixpoint,
-│                   three-valued semantics, spectral-gap convergence)
-├── integrator/     Time integrators (TDVP, Krylov, Euler, DMRG steady-state)
-├── tensor/         TT/MPS engine (MPS/MPO, SVD compression, canonical forms)
-├── error/          Error certification (truncation, clamping bounds,
-│                   cumulative tracker, Frobenius-to-L1, spectral gap)
+├── cme/            CME compiler (ReactionNetwork → MPO, FSP bounds)
+├── checker/        CSL checker (parser, three-valued semantics, spectral gap)
+├── integrator/     TDVP 1-site/2-site, Krylov integrators
+├── tensor/         TT/MPS engine (SVD compression, canonical forms)
+├── error/          Error certification (truncation, clamping, propagation)
 ├── verifier/       Independent verifier (11 soundness checks, JSON traces)
-├── models/         Model library (51 biological models)
-├── evaluation/     Benchmarks, PRISM cross-validation, compressibility
-│                   theorem, deficiency analysis, math rigor suite
-├── solver/         Dense reference solver (expm-based)
-├── adaptive/       Adaptive bond-dimension controller
-├── ordering/       Species ordering strategies
-├── config.py       Master configuration
-├── diagnostics.py  Marginals, moments, validation
-└── experiments.py  Reproducible experiment runners
+├── models/         51 biological models
+├── evaluation/     Benchmarks, PRISM cross-validation, graph predictors
+├── coupling/       FSP-TT coupling analysis
+├── stiffness/      Stiffness-aware adaptive TDVP
+├── smc/            Statistical model checking (SPRT) baseline
+├── cli.py          Command-line interface
+└── network_loader.py  YAML/JSON/SBML network loader
 ```
+
+---
 
 ## Testing
 
 ```bash
-python3 -m pytest tests/ -q           # 205 tests, quick summary
-python3 -m pytest tests/ -v           # Verbose output
-python3 -m pytest tests/ --tb=short   # Quick pass/fail
+python3 -m pytest tests/ -q                         # All tests
+python3 -m pytest tests/ -q --timeout=30             # With timeout
+python3 -m pytest tests/test_checker.py -q           # CSL checker only
+python3 -m pytest tests/test_path_b_improvements.py  # Path B only
 ```
+
+Key results: 11/11 certificate checks SOUND, 0 cross-validation disagreements
+across 30 CSL properties on 10 models, birth-death L1 error = 0.0.
 
 ## Grounding
 
 Every paper claim is mapped to code, proof, and numerical verification in
-[`docs/meta/grounding.json`](docs/meta/grounding.json). The critique triage
-and review responses are in [`docs/meta/`](docs/meta/).
+[`docs/meta/grounding.json`](docs/meta/grounding.json).
+
+---
 
 ## References
 
@@ -146,6 +459,9 @@ and review responses are in [`docs/meta/`](docs/meta/).
 3. Baier et al. (2003). Model-checking CTMCs. *IEEE TSE.*
 4. Ion et al. (2021). TT approximation of the CME. *J. Chem. Phys.*
 5. Kwiatkowska et al. (2011). PRISM 4.0. *QEST.*
-6. Gillespie (1992). Markov processes. *Academic Press.*
-7. Feinberg (1972). Complex balancing in general kinetic systems. *Arch. Rational Mech. Anal.*
-8. Anderson, Craciun & Kurtz (2010). Product-form stationary distributions for deficiency zero networks. *Bull. Math. Biol.*
+6. Feinberg (1972). Complex balancing. *Arch. Rational Mech. Anal.*
+7. Anderson, Craciun & Kurtz (2010). Product-form distributions. *Bull. Math. Biol.*
+8. Munsky & Khammash (2006). FSP method for CME. *J. Chem. Phys.*
+9. Wald (1945). Sequential tests. *Ann. Math. Statist.*
+10. Haegeman et al. (2016). TDVP for MPS. *Phys. Rev. B.*
+11. Hucka et al. (2003). SBML. *Bioinformatics.*
