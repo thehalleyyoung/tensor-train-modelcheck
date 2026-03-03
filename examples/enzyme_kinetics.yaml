@@ -1,0 +1,55 @@
+# Michaelis-Menten enzyme kinetics
+#
+# Full enzymatic reaction (4 species):
+#   E + S →[k_f] ES       (binding)
+#   ES →[k_r] E + S       (unbinding)
+#   ES →[k_cat] E + P     (catalysis)
+#
+# Conservation laws: E + ES = E_total, S + ES + P = S_total
+# Initial: E₀ = 10, S₀ = 20
+
+name: enzyme_kinetics
+description: "Full Michaelis-Menten enzymatic reaction"
+
+species:
+  - name: E
+    max_copy_number: 20
+    initial_count: 10
+    description: "Free enzyme"
+
+  - name: S
+    max_copy_number: 40
+    initial_count: 20
+    description: "Substrate"
+
+  - name: ES
+    max_copy_number: 20
+    initial_count: 0
+    description: "Enzyme-substrate complex"
+
+  - name: P
+    max_copy_number: 40
+    initial_count: 0
+    description: "Product"
+
+reactions:
+  - name: binding
+    reactants: {E: 1, S: 1}
+    products: {ES: 1}
+    rate_constant: 0.01
+    kinetics: mass_action
+    description: "Enzyme-substrate binding"
+
+  - name: unbinding
+    reactants: {ES: 1}
+    products: {E: 1, S: 1}
+    rate_constant: 0.1
+    kinetics: mass_action
+    description: "Complex dissociation"
+
+  - name: catalysis
+    reactants: {ES: 1}
+    products: {E: 1, P: 1}
+    rate_constant: 0.5
+    kinetics: mass_action
+    description: "Catalytic conversion"

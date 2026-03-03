@@ -1,5 +1,5 @@
 {
-  "project": "csl-model-checking-on-tensor-train-cme",
+  "project": "tensor-train-modelcheck",
   "category": "B",
   "triage_reason": "Novel TT-based CSL model checking approach but insufficient depth: unresolved clamping gap, no independent certificate verification, fragile fixpoint convergence",
   "improvements": [

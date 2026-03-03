@@ -188,17 +188,25 @@ def compose_fsp_tt_errors(
     per_step_clamping_errors: Optional[list[float]] = None,
     threshold: Optional[float] = None,
     is_metzler: bool = True,
+    fsp_exit_rate: float = 0.0,
+    time_horizon: float = 0.0,
 ) -> dict:
     """
     Analyze how FSP truncation error and TT truncation error compose
     through the CSL evaluation pipeline.
 
-    Key insight:
+    Key insight (addressing reviewer critique on FSP-TT coupling):
     - FSP truncation removes probability mass from high-count states → ε_FSP
     - TT truncation introduces L1 error at each step → Σ ε_k
-    - These errors are independent and additive (triangle inequality)
-    - For probability operators P~p[φ], the FSP error affects the threshold
-      comparison differently than the TT error
+    - These errors are structurally coupled: larger FSP domain (larger M)
+      means larger physical dimensions d_k, which can increase TT ranks.
+    - However, for distributions with exponential tails, the coupling is
+      weak: additional FSP states have near-zero probability and contribute
+      negligible TT rank.
+
+    FSP Non-conservativity Bound (new):
+        1 - ||e^{Q_FSP·t} p_0||_1 ≤ 1 - e^{-λ_exit · t}
+    where λ_exit is the maximum boundary exit rate.
 
     For Metzler generators (CME), the semigroup is an L1 contraction,
     so TT errors accumulate linearly (Theorem 1).

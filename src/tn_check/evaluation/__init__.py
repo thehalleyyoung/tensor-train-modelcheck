@@ -32,6 +32,22 @@ from tn_check.evaluation.compressibility import (
     run_deficiency_analysis,
 )
 
+from tn_check.evaluation.graph_predictors import (
+    compute_tree_width,
+    compute_modularity,
+    predict_compressibility_graph,
+    validate_predictors,
+)
+
+from tn_check.evaluation.tightness import (
+    run_tightness_study,
+    tightness_vs_bond_dim,
+)
+
+from tn_check.evaluation.path_b_experiments import (
+    run_all_experiments,
+)
+
 __all__ = [
     "ground_truth_check",
     "compressibility_survey",
@@ -49,4 +65,11 @@ __all__ = [
     "compute_deficiency",
     "compute_interaction_graph_bandwidth",
     "run_deficiency_analysis",
+    "compute_tree_width",
+    "compute_modularity",
+    "predict_compressibility_graph",
+    "validate_predictors",
+    "run_tightness_study",
+    "tightness_vs_bond_dim",
+    "run_all_experiments",
 ]

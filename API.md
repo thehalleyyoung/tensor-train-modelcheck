@@ -25,6 +25,14 @@
 - [Diagnostics (`tn_check.diagnostics`)](#diagnostics)
 - [Model Library (`tn_check.models.library`)](#model-library)
 - [Experiments (`tn_check.experiments`)](#experiments)
+- [Coupling: FSP-TT Analysis (`tn_check.coupling`)](#fsp-tt-coupling-analysis)
+- [Stiffness: Adaptive TDVP (`tn_check.stiffness`)](#stiffness-aware-tdvp)
+- [SMC: Statistical Model Checking (`tn_check.smc`)](#statistical-model-checking)
+- [Evaluation: Tightness (`tn_check.evaluation.tightness`)](#error-bound-tightness)
+- [Evaluation: Graph Predictors (`tn_check.evaluation.graph_predictors`)](#graph-theoretic-compressibility)
+- [Evaluation: Path B Experiments (`tn_check.evaluation.path_b_experiments`)](#path-b-experiments)
+- [CLI Reference (`tn-check`)](#cli-reference)
+- [Network Loader (`tn_check.network_loader`)](#network-loader)
 
 ---
 
@@ -791,4 +799,367 @@ run_full_pipeline_experiment() -> dict
 run_scaling_validation_experiment() -> dict
 run_multi_species_csl_experiment() -> dict
 run_compression_accuracy_experiment() -> dict
+```
+
+---
+
+## FSP-TT Coupling Analysis
+
+**Module:** `tn_check.coupling`
+
+Analyzes the interplay between FSP truncation dimension *M* and TT bond dimension *χ*, providing joint optimization and non-conservativity tracking.
+
+### Data Classes
+
+| Class | Fields | Description |
+|-------|--------|-------------|
+| `CouplingResult` | `fsp_dims, tt_ranks, errors, non_conservativity, boundary_exit_rates` | Single coupling experiment result |
+| `JointOptimizationResult` | `optimal_fsp_dims, optimal_tt_ranks, pareto_front, total_cost` | Pareto-optimal (M, χ) configurations |
+| `NonConservativityTracker` | `times, mass_loss, exit_rates, cumulative_loss` | Time series of probability mass leakage |
+
+### `FSPTTCouplingAnalysis`
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `__init__` | `(network, config=None)` | Initialize with a `ReactionNetwork` |
+| `analyze_coupling` | `(fsp_dims, chi_values, time_horizon, ...) -> CouplingResult` | Sweep (M, χ) grid, measure errors and non-conservativity |
+| `joint_m_chi_optimization` | `(target_error, time_horizon, ...) -> JointOptimizationResult` | Find Pareto-optimal allocations meeting error target |
+| `track_nonconservativity` | `(fsp_dims, time_horizon, n_snapshots) -> NonConservativityTracker` | Record probability mass loss over time |
+
+### Module-Level Functions
+
+```python
+fsp_nonconservativity_bound(exit_rate: float, time_horizon: float) -> float
+compute_boundary_exit_rate(network, fsp_dims) -> float
+coupling_correlation_study(network, fsp_dims_list, chi_list, time_horizon) -> dict
+```
+
+```python
+from tn_check.coupling import FSPTTCouplingAnalysis, fsp_nonconservativity_bound
+
+coupling = FSPTTCouplingAnalysis(network)
+result = coupling.analyze_coupling(
+    fsp_dims=[20, 40, 60],
+    chi_values=[4, 8, 16],
+    time_horizon=1.0
+)
+bound = fsp_nonconservativity_bound(exit_rate=0.1, time_horizon=1.0)
+```
+
+---
+
+## Stiffness-Aware TDVP
+
+**Module:** `tn_check.stiffness`
+
+Extends the TDVP integrator with stiffness detection and adaptive step-size control via a PI controller with CFL-like stability constraints.
+
+### Data Classes
+
+| Class | Fields | Description |
+|-------|--------|-------------|
+| `StiffnessAnalysis` | `stiffness_ratio, max_eigenvalue, min_eigenvalue, condition_number, is_stiff` | Spectral analysis of the CME generator |
+| `ProjectionMonitor` | `projection_errors, norm_violations, step_sizes, accepted_steps, rejected_steps` | Tracks TDVP projection fidelity per step |
+
+### `StepSizeController`
+
+PI controller for adaptive time-stepping.
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `__init__` | `(dt_init, dt_min, dt_max, safety, k_p, k_i)` | Initialize with PI gains and bounds |
+| `propose_step` | `(error_estimate, tolerance) -> float` | Compute next step size from local error |
+| `reject_step` | `() -> float` | Halve current step on rejection |
+
+### `StiffnessAwareTDVP`
+
+Extends `IntegratorBase`.
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `__init__` | `(config=None, stiffness_threshold=1e4, ...)` | Initialize with stiffness parameters |
+| `analyze_stiffness` | `(generator_mpo, dims) -> StiffnessAnalysis` | Compute stiffness ratio of CME generator |
+| `evolve_adaptive` | `(state, generator, time_horizon, ...) -> tuple[MPS, ProjectionMonitor]` | Integrate with adaptive step control |
+| `detect_fast_transients` | `(state, generator) -> dict` | Identify fast-decaying modes via power iteration |
+
+### Module-Level Functions
+
+```python
+compute_stiffness_ratio(generator_mpo, dims) -> StiffnessAnalysis
+analyze_generator_spectrum(generator_mpo, dims, k=10) -> dict
+stiffness_comparison_experiment(models_dict, time_horizon) -> dict
+```
+
+```python
+from tn_check.stiffness import StiffnessAwareTDVP, compute_stiffness_ratio
+
+tdvp = StiffnessAwareTDVP(stiffness_threshold=1e4)
+analysis = tdvp.analyze_stiffness(generator_mpo, dims)
+state, monitor = tdvp.evolve_adaptive(
+    state=initial_mps,
+    generator=generator_mpo,
+    time_horizon=1.0,
+    tolerance=1e-6
+)
+```
+
+---
+
+## Statistical Model Checking
+
+**Module:** `tn_check.smc`
+
+Provides Gillespie SSA simulation and Sequential Probability Ratio Test (SPRT) for CSL model checking, enabling direct comparison with TN-Check's tensor-based approach.
+
+### Data Classes
+
+| Class | Fields | Description |
+|-------|--------|-------------|
+| `SMCResult` | `verdict, p_estimate, confidence_interval, n_samples, elapsed_time, trajectory_stats` | Result of an SPRT or Monte Carlo CSL check |
+| `SMCComparison` | `smc_result, tn_result, agreement, speedup, smc_time, tn_time` | Head-to-head SMC vs TN-Check comparison |
+
+### Module-Level Functions
+
+```python
+gillespie_simulation(network, initial_state, t_final, max_steps=1_000_000) -> dict
+importance_sampling_sprt(
+    network, initial_state, property_fn, t_final,
+    alpha=0.01, beta=0.01, theta=0.5, indifference=0.01, ...
+) -> SMCResult
+run_smc_comparison(network, config, property_fn, t_final, ...) -> SMCComparison
+smc_scaling_study(models_dict, property_fns, t_final) -> dict
+```
+
+```python
+from tn_check.smc import gillespie_simulation, run_smc_comparison
+
+traj = gillespie_simulation(network, initial_state=[10], t_final=1.0)
+comparison = run_smc_comparison(
+    network, config,
+    property_fn=lambda counts: counts[0] > 5,
+    t_final=1.0
+)
+print(f"Agreement: {comparison.agreement}, Speedup: {comparison.speedup:.1f}x")
+```
+
+---
+
+## Error Bound Tightness
+
+**Module:** `tn_check.evaluation.tightness`
+
+Studies how tight the certified error bounds (Theorem 7) are compared to actual L1 errors, computing tightness ratios across models and parameter regimes.
+
+### Data Classes
+
+| Class | Fields | Description |
+|-------|--------|-------------|
+| `TightnessResult` | `model_name, certified_bound, actual_error, tightness_ratio, ...` | Per-model tightness measurement |
+| `TightnessStudy` | `results, summary_stats, parameter_sensitivity` | Aggregated study across models |
+
+### Module-Level Functions
+
+```python
+run_tightness_study(
+    models: dict[str, tuple[ReactionNetwork, TNCheckConfig]],
+    time_horizons: list[float],
+    chi_values: list[int],
+    fsp_dims_list: list[list[int]]
+) -> TightnessStudy
+```
+
+```python
+from tn_check.evaluation.tightness import run_tightness_study
+
+study = run_tightness_study(
+    models={"birth_death": (network, config)},
+    time_horizons=[0.5, 1.0],
+    chi_values=[4, 8],
+    fsp_dims_list=[[30], [60]]
+)
+print(f"Mean tightness ratio: {study.summary_stats['mean_ratio']:.1f}×")
+```
+
+---
+
+## Graph-Theoretic Compressibility
+
+**Module:** `tn_check.evaluation.graph_predictors`
+
+Predicts TT-rank compressibility from the CRN interaction graph using three complementary methods: tree-width, deficiency, and modularity.
+
+### Module-Level Functions
+
+```python
+compute_treewidth_upper_bound(network) -> dict
+    # Returns: {'treewidth': int, 'elimination_order': list, 'rank_bound': int, ...}
+
+compute_crn_deficiency(network) -> dict
+    # Returns: {'deficiency': int, 'n_complexes': int, 'rank': int, 'n_linkage_classes': int, ...}
+
+compute_modularity(network) -> dict
+    # Returns: {'modularity': float, 'communities': list, 'separator_dims': list, 'rank_bound': int}
+
+predict_compressibility_graph(network) -> dict
+    # Returns combined prediction with treewidth, deficiency, modularity sub-dicts,
+    # plus 'combined_rank_bound' (minimum of all) and 'compressibility_rating'
+```
+
+```python
+from tn_check.evaluation.graph_predictors import predict_compressibility_graph
+
+prediction = predict_compressibility_graph(network)
+print(f"Rating: {prediction['compressibility_rating']}")
+print(f"Combined rank bound: {prediction['combined_rank_bound']}")
+```
+
+---
+
+## Path B Experiments
+
+**Module:** `tn_check.evaluation.path_b_experiments`
+
+Orchestrates all five Category B improvement experiments and saves results to JSON.
+
+### Module-Level Functions
+
+```python
+run_all_experiments(output_dir="benchmarks", quick=False) -> dict
+    # Runs: fsp_tt_coupling, stiffness_analysis, error_tightness,
+    #       compressibility_predictors, smc_comparison
+    # Returns dict with per-experiment results and metadata
+```
+
+```python
+from tn_check.evaluation.path_b_experiments import run_all_experiments
+
+results = run_all_experiments(output_dir="benchmarks", quick=True)
+for name, data in results["experiments"].items():
+    print(f"{name}: {data.get('status', 'ok')}")
+```
+
+---
+
+## CLI Reference
+
+**Command:** `tn-check`
+
+The CLI is installed as a console script via `pip install -e .` and provides
+subcommands for working with reaction networks and CSL properties.
+
+### `tn-check check`
+
+```
+tn-check check NETWORK_FILE PROPERTY [OPTIONS]
+```
+
+Check a CSL property against a reaction network.
+
+| Argument / Option | Description |
+|---|---|
+| `NETWORK_FILE` | Path to YAML/JSON network definition |
+| `PROPERTY` | CSL formula string (e.g., `"P>=0.9 [true U<=10.0 X_0 >= 3]"`) |
+| `--max-bond-dim` / `-chi` | Maximum TT bond dimension (default: 200) |
+| `--output` / `-o` | Write result JSON to file |
+| `--verbose` / `-v` | Enable verbose logging |
+
+### `tn-check verify`
+
+```
+tn-check verify NETWORK_FILE PROPERTY [OPTIONS]
+```
+
+Like `check`, but also produces a formal verification certificate via
+the independent `CertificateVerifier`.
+
+| Option | Description |
+|---|---|
+| `--certificate` / `-c` | Output path for certificate JSON (default: `certificate.json`) |
+| `--max-bond-dim` / `-chi` | Maximum TT bond dimension (default: 200) |
+
+### `tn-check info`
+
+```
+tn-check info NETWORK_FILE
+```
+
+Display network statistics: species count, reaction count, state space
+size estimate, and per-species/per-reaction details.
+
+### `tn-check init-network`
+
+```
+tn-check init-network [OUTPUT_FILE]
+```
+
+Generate a starter YAML template with commented examples of all three
+kinetics types. Default output: `network.yaml`.
+
+### `tn-check check-network`
+
+```
+tn-check check-network NETWORK_FILE
+```
+
+Validate a network definition file without running model checking. Checks
+for structural errors: missing fields, unknown species, invalid parameters.
+
+---
+
+## Network Loader
+
+**Module:** `tn_check.network_loader`
+
+Reads YAML/JSON network definitions and constructs `ReactionNetwork` objects.
+
+### `load_network(path) -> ReactionNetwork`
+
+Load a `ReactionNetwork` from a YAML or JSON file. Supports mass-action,
+Hill, and Michaelis-Menten kinetics.
+
+### `validate_network_dict(data) -> list[str]`
+
+Validate a parsed network dictionary without building the network.
+Returns a list of error messages (empty if valid).
+
+### Network File Format
+
+```yaml
+name: my_model            # optional
+description: "..."        # optional
+
+species:
+  - name: A               # required
+    max_copy_number: 50    # optional, default 50
+    initial_count: 0       # optional, default 0
+    description: "..."     # optional
+
+reactions:
+  # Mass-action kinetics
+  - name: r1              # required
+    reactants: {A: 1}     # species_name: stoichiometry
+    products: {B: 1}
+    rate_constant: 0.5    # required for mass_action
+    kinetics: mass_action  # optional, default mass_action
+
+  # Hill kinetics
+  - name: r2
+    products: {A: 1}
+    kinetics: hill
+    hill:
+      regulator: B          # species name
+      v_max: 10.0
+      k_half: 5.0
+      hill_coefficient: 2.0
+      activation: true      # true = activation, false = repression
+
+  # Michaelis-Menten kinetics
+  - name: r3
+    kinetics: michaelis_menten
+    michaelis_menten:
+      substrate: S
+      product: P
+      enzyme: E
+      k_cat: 1.0
+      k_m: 10.0
 ```

@@ -1,0 +1,52 @@
+# Gene expression model: transcription + translation
+#
+# Two-species model (Thattai & van Oudenaarden, 2001):
+#   ∅ →[k_txn] mRNA             (transcription)
+#   mRNA →[k_tln] mRNA + Protein  (translation, catalytic)
+#   mRNA →[γ_m] ∅               (mRNA degradation)
+#   Protein →[γ_p] ∅            (protein degradation)
+#
+# Steady state: <mRNA> = k_txn/γ_m = 5, <Protein> = k_txn*k_tln/(γ_m*γ_p) = 5000
+
+name: gene_expression
+description: "Simple 2-species gene expression (transcription + translation)"
+
+species:
+  - name: mRNA
+    max_copy_number: 40
+    initial_count: 0
+    description: "Messenger RNA"
+
+  - name: Protein
+    max_copy_number: 200
+    initial_count: 0
+    description: "Translated protein"
+
+reactions:
+  - name: transcription
+    reactants: {}
+    products: {mRNA: 1}
+    rate_constant: 0.5
+    kinetics: mass_action
+    description: "Constitutive transcription"
+
+  - name: translation
+    reactants: {mRNA: 1}
+    products: {mRNA: 1, Protein: 1}
+    rate_constant: 5.0
+    kinetics: mass_action
+    description: "mRNA-catalyzed translation"
+
+  - name: mRNA_degradation
+    reactants: {mRNA: 1}
+    products: {}
+    rate_constant: 0.1
+    kinetics: mass_action
+    description: "mRNA decay"
+
+  - name: protein_degradation
+    reactants: {Protein: 1}
+    products: {}
+    rate_constant: 0.005
+    kinetics: mass_action
+    description: "Protein decay"

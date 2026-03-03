@@ -1,6 +1,6 @@
 # Certified CSL Model Checking via Tensor-Train Decomposition of Chemical Master Equation States
 
-**Slug:** `csl-model-checking-on-tensor-train-cme`
+**Slug:** `tensor-train-modelcheck`
 
 ---
 

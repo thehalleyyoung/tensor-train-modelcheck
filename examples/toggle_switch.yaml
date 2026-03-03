@@ -1,0 +1,60 @@
+# Genetic toggle switch (Gardner et al., 2000)
+#
+# Two mutually repressing genes (bistable):
+#   ∅ →[α₁/(1+X₂^β)] X₁   (production of X₁, repressed by X₂)
+#   X₁ →[γ] ∅              (degradation of X₁)
+#   ∅ →[α₂/(1+X₁^β)] X₂   (production of X₂, repressed by X₁)
+#   X₂ →[γ] ∅              (degradation of X₂)
+#
+# Bistability arises when β > 1 and α₁, α₂ are large enough.
+
+name: toggle_switch
+description: "Gardner toggle switch — two mutually repressing genes"
+
+species:
+  - name: X1
+    max_copy_number: 100
+    initial_count: 0
+    description: "Protein from gene 1"
+
+  - name: X2
+    max_copy_number: 100
+    initial_count: 0
+    description: "Protein from gene 2"
+
+reactions:
+  - name: prod_X1
+    products: {X1: 1}
+    kinetics: hill
+    hill:
+      regulator: X2
+      v_max: 50.0
+      k_half: 1.0
+      hill_coefficient: 2.5
+      activation: false
+    description: "Production of X1, repressed by X2"
+
+  - name: deg_X1
+    reactants: {X1: 1}
+    products: {}
+    rate_constant: 1.0
+    kinetics: mass_action
+    description: "Degradation of X1"
+
+  - name: prod_X2
+    products: {X2: 1}
+    kinetics: hill
+    hill:
+      regulator: X1
+      v_max: 50.0
+      k_half: 1.0
+      hill_coefficient: 2.5
+      activation: false
+    description: "Production of X2, repressed by X1"
+
+  - name: deg_X2
+    reactants: {X2: 1}
+    products: {}
+    rate_constant: 1.0
+    kinetics: mass_action
+    description: "Degradation of X2"

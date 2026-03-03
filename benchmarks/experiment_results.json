@@ -1,455 +1,268 @@
 {
-  "birth_death": {
-    "model_name": "birth_death",
-    "max_copy": 30,
-    "lambda": 10.0,
-    "truncation_error": 0.0,
-    "l1_error": 0.0,
-    "l2_error": 0.0,
-    "linf_error": 0.0,
-    "exact_mean": 9.999998288428127,
-    "mps_mean": 9.999998288428127,
-    "passed": true
-  },
-  "clamping": {
-    "num_trials": 10,
-    "all_passed": true,
-    "passed": true,
-    "trials": [
+  "fsp_tt_coupling": {
+    "models": [
       {
-        "trial": 0,
-        "d": 4,
-        "max_chi": 3,
-        "clamp_err": 0.00644493016216092,
-        "l1_trunc": 0.07645790677641837,
-        "passed": true
-      },
-      {
-        "trial": 1,
-        "d": 8,
-        "max_chi": 1,
-        "clamp_err": 0.0,
-        "l1_trunc": 0.5622624530233259,
-        "passed": true
-      },
-      {
-        "trial": 2,
-        "d": 6,
-        "max_chi": 3,
-        "clamp_err": 0.0027261904095234363,
-        "l1_trunc": 0.22360233089247844,
-        "passed": true
-      },
-      {
-        "trial": 3,
-        "d": 5,
-        "max_chi": 2,
-        "clamp_err": 0.0,
-        "l1_trunc": 0.3092092609435455,
-        "passed": true
-      },
-      {
-        "trial": 4,
-        "d": 8,
-        "max_chi": 1,
-        "clamp_err": 0.0,
-        "l1_trunc": 0.6547036752980884,
-        "passed": true
-      },
-      {
-        "trial": 5,
-        "d": 6,
-        "max_chi": 1,
-        "clamp_err": 0.0,
-        "l1_trunc": 0.481856114500442,
-        "passed": true
-      },
-      {
-        "trial": 6,
-        "d": 8,
-        "max_chi": 2,
-        "clamp_err": 0.011937981262189767,
-        "l1_trunc": 0.5217469536075344,
-        "passed": true
-      },
-      {
-        "trial": 7,
-        "d": 7,
-        "max_chi": 1,
-        "clamp_err": 0.0,
-        "l1_trunc": 0.6190036372238065,
-        "passed": true
-      },
-      {
-        "trial": 8,
-        "d": 7,
-        "max_chi": 2,
-        "clamp_err": 0.0,
-        "l1_trunc": 0.43149208399926114,
-        "passed": true
-      },
-      {
-        "trial": 9,
-        "d": 4,
-        "max_chi": 3,
-        "clamp_err": 0.00311859066146188,
-        "l1_trunc": 0.019541171060155266,
-        "passed": true
-      }
-    ]
-  },
-  "scaling_validation": {
-    "species_counts": [
-      2,
-      3,
-      4,
-      5,
-      6,
-      8,
-      10
-    ],
-    "max_copy": 10,
-    "results": [
-      {
-        "n_species": 2,
-        "state_space_size": 100,
-        "mpo_parameters": 1600,
-        "max_bond_dim": 8,
-        "bond_dims": [
-          1,
-          8,
-          1
+        "name": "birth-death",
+        "num_species": 1,
+        "num_reactions": 2,
+        "m_chi_correlation": 0.0,
+        "rank_growth_rate": "constant",
+        "exit_rate": 1.0,
+        "nc_bound": 0.6321205588285577,
+        "num_coupling_points": 9,
+        "optimal_fsp_dims": [
+          15
         ],
-        "compression_ratio": 6.25,
-        "compile_time_s": 0.00020885467529296875,
-        "dense_vs_tt_l1_error": 0.5287323433443328,
-        "tt_evolve_time_s": 0.003003835678100586,
-        "tt_trunc_error": 1.094563443547302e-11,
-        "tt_clamp_error": 0.0
+        "optimal_chi": 5,
+        "optimal_error": 0.6321205588285577,
+        "pareto_front_size": 1
       },
       {
-        "n_species": 3,
-        "state_space_size": 1000,
-        "mpo_parameters": 16800,
-        "max_bond_dim": 12,
-        "bond_dims": [
-          1,
-          12,
-          12,
-          1
+        "name": "gene-expression",
+        "num_species": 2,
+        "num_reactions": 4,
+        "m_chi_correlation": 0.0,
+        "rank_growth_rate": "constant",
+        "exit_rate": 35.0,
+        "nc_bound": 0.9999999999999993,
+        "num_coupling_points": 9,
+        "optimal_fsp_dims": [
+          7,
+          10
         ],
-        "compression_ratio": 59.523809523809526,
-        "compile_time_s": 0.00034117698669433594,
-        "dense_vs_tt_l1_error": 0.4794574965612091,
-        "tt_evolve_time_s": 0.45225977897644043,
-        "tt_trunc_error": 9.988936965099644,
-        "tt_clamp_error": 8.221158850814426e-06
-      },
-      {
-        "n_species": 4,
-        "state_space_size": 10000,
-        "mpo_parameters": 54400,
-        "max_bond_dim": 16,
-        "bond_dims": [
-          1,
-          16,
-          16,
-          16,
-          1
-        ],
-        "compression_ratio": 1838.235294117647,
-        "compile_time_s": 0.0007579326629638672
-      },
-      {
-        "n_species": 5,
-        "state_space_size": 100000,
-        "mpo_parameters": 124000,
-        "max_bond_dim": 20,
-        "bond_dims": [
-          1,
-          20,
-          20,
-          20,
-          20,
-          1
-        ],
-        "compression_ratio": 80645.16129032258,
-        "compile_time_s": 0.0011959075927734375
-      },
-      {
-        "n_species": 6,
-        "state_space_size": 1000000,
-        "mpo_parameters": 235200,
-        "max_bond_dim": 24,
-        "bond_dims": [
-          1,
-          24,
-          24,
-          24,
-          24,
-          24,
-          1
-        ],
-        "compression_ratio": 4251700.680272109,
-        "compile_time_s": 0.0016608238220214844
-      },
-      {
-        "n_species": 8,
-        "state_space_size": 100000000,
-        "mpo_parameters": 620800,
-        "max_bond_dim": 32,
-        "bond_dims": [
-          1,
-          32,
-          32,
-          32,
-          32,
-          32,
-          32,
-          32,
-          1
-        ],
-        "compression_ratio": 16108247422.680412,
-        "compile_time_s": 0.004054069519042969
-      },
-      {
-        "n_species": 10,
-        "state_space_size": 10000000000,
-        "mpo_parameters": 1288000,
-        "max_bond_dim": 40,
-        "bond_dims": [
-          1,
-          40,
-          40,
-          40,
-          40,
-          40,
-          40,
-          40,
-          40,
-          40,
-          1
-        ],
-        "compression_ratio": 77639751552795.03,
-        "compile_time_s": 0.007664203643798828
+        "optimal_chi": 5,
+        "optimal_error": 0.9999996940976795,
+        "pareto_front_size": 1
       }
     ],
-    "all_compiled": true,
-    "compression_grows": true,
-    "passed": true
+    "summary": {
+      "num_models": 2,
+      "mean_correlation": 0.0,
+      "growth_rates": {
+        "birth-death": "constant",
+        "gene-expression": "constant"
+      },
+      "conclusion": "FSP dimension M and TT rank \u03c7 show weak to moderate coupling. Joint optimization reduces total error by choosing balanced (M,\u03c7) pairs."
+    }
   },
-  "compression_accuracy": {
-    "model_name": "gene_expression",
-    "physical_dims": [
-      20,
-      50
-    ],
-    "steady_state_computed": true,
-    "compression_results": [
+  "stiffness_tdvp": {
+    "models": [
       {
-        "bond_dim": 1,
-        "truncation_error": 0.018991860519686703,
-        "l1_error": 0.23474330864948348
+        "name": "birth-death",
+        "spectrum": {
+          "error": "'DenseReferenceSolver' object has no attribute 'Q'"
+        },
+        "stiffness_ratio": 20085250.34787778,
+        "classification": "severely-stiff",
+        "standard_error": 0.0,
+        "aware_error": 0.0,
+        "standard_time": 0.004767894744873047,
+        "aware_time": 10.9566068649292,
+        "improvement": {
+          "error_reduction": 0.0,
+          "speedup": 0.0004351616156033227
+        }
       },
       {
-        "bond_dim": 2,
-        "truncation_error": 0.003873762228954314,
-        "l1_error": 0.047142747122646204
-      },
-      {
-        "bond_dim": 5,
-        "truncation_error": 4.005217511353548e-06,
-        "l1_error": 4.882915120121657e-05
-      },
-      {
-        "bond_dim": 10,
-        "truncation_error": 0.0,
-        "l1_error": 1.6203862929497454e-12
-      },
-      {
-        "bond_dim": 20,
-        "truncation_error": 0.0,
-        "l1_error": 1.6203862929497454e-12
-      },
-      {
-        "bond_dim": 50,
-        "truncation_error": 0.0,
-        "l1_error": 1.6203862929497454e-12
+        "name": "gene-expression",
+        "spectrum": {
+          "error": "'DenseReferenceSolver' object has no attribute 'Q'"
+        },
+        "stiffness_ratio": 170.79898361054555,
+        "classification": "mildly-stiff",
+        "standard_error": Infinity,
+        "aware_error": Infinity,
+        "standard_time": 0.00047707557678222656,
+        "aware_time": 0.00031113624572753906,
+        "improvement": {
+          "error_reduction": 0.0,
+          "speedup": 1.5333333333333334
+        }
       }
     ],
-    "errors_decrease": true,
-    "exponential_convergence": true,
-    "first_l1": 0.23474330864948348,
-    "last_l1": 1.6203862929497454e-12,
-    "passed": true
+    "summary": {
+      "num_models": 2,
+      "num_stiff": 2,
+      "stiffness_ratios": {
+        "birth-death": 20085250.34787778,
+        "gene-expression": 170.79898361054555
+      }
+    }
   },
-  "error_propagation": {
-    "model_name": "birth_death",
-    "max_copy": 30,
-    "lambda": 10.0,
-    "error_table": [
+  "error_tightness": {
+    "models_tested": 3,
+    "num_results": 6,
+    "mean_tightness_ratio": 43.21325724147527,
+    "median_tightness_ratio": 1.805611410664654,
+    "min_tightness_ratio": 1.9991542839185246e-05,
+    "max_tightness_ratio": 127.83414032221832,
+    "bound_violations": 3,
+    "tightest_model": "birth-death",
+    "loosest_model": "toggle-switch",
+    "per_model": [
       {
-        "bond_dim": 1,
-        "l1_truncation_error": 0.0,
-        "clamping_error": 0.0,
-        "total_certified_error": 0.0,
-        "proposition_1_verified": true
+        "model": "birth-death",
+        "chi": 5,
+        "certified": 1.9499980987713883e-06,
+        "actual_l1": 0.09754115099857197,
+        "tightness": 1.9991542839185246e-05,
+        "valid": false
       },
       {
-        "bond_dim": 2,
-        "l1_truncation_error": 0.0,
-        "clamping_error": 0.0,
-        "total_certified_error": 0.0,
-        "proposition_1_verified": true
+        "model": "birth-death",
+        "chi": 10,
+        "certified": 1.9499980987713883e-06,
+        "actual_l1": 0.09754115099857197,
+        "tightness": 1.9991542839185246e-05,
+        "valid": false
       },
       {
-        "bond_dim": 3,
-        "l1_truncation_error": 0.0,
-        "clamping_error": 0.0,
-        "total_certified_error": 0.0,
-        "proposition_1_verified": true
+        "model": "birth-death",
+        "chi": 20,
+        "certified": 1.9499980987713883e-06,
+        "actual_l1": 0.09754115099857197,
+        "tightness": 1.9991542839185246e-05,
+        "valid": false
       },
       {
-        "bond_dim": 5,
-        "l1_truncation_error": 0.0,
-        "clamping_error": 0.0,
-        "total_certified_error": 0.0,
-        "proposition_1_verified": true
+        "model": "toggle-switch",
+        "chi": 5,
+        "certified": 0.0012382827176381595,
+        "actual_l1": 0.0003429003509369147,
+        "tightness": 3.6112028297864684,
+        "valid": true
+      },
+      {
+        "model": "toggle-switch",
+        "chi": 10,
+        "certified": 5.0045410579628604e-05,
+        "actual_l1": 3.9148705074782296e-07,
+        "tightness": 127.83414032221832,
+        "valid": true
+      },
+      {
+        "model": "toggle-switch",
+        "chi": 20,
+        "certified": 5.0045410579628604e-05,
+        "actual_l1": 3.9148705074782296e-07,
+        "tightness": 127.83414032221832,
+        "valid": true
       }
     ],
-    "all_proposition_1": true,
-    "passed": true
+    "analysis": {
+      "overall": {
+        "mean_tightness": 43.21325724147527,
+        "median_tightness": 1.805611410664654,
+        "std_tightness": 59.849619939217625,
+        "mean_log_tightness": -1.5544192453088916,
+        "bound_violations": 3
+      },
+      "by_model": {
+        "birth-death": {
+          "mean_tightness": 1.9991542839185246e-05,
+          "num_tests": 3
+        },
+        "toggle-switch": {
+          "mean_tightness": 86.42649449140771,
+          "num_tests": 3
+        }
+      },
+      "by_bond_dim": {
+        "5": {
+          "mean_tightness": 1.805611410664654,
+          "num_tests": 2
+        },
+        "10": {
+          "mean_tightness": 63.91708015688058,
+          "num_tests": 2
+        },
+        "20": {
+          "mean_tightness": 63.91708015688058,
+          "num_tests": 2
+        }
+      },
+      "dominant_error_source": {
+        "fsp_dominated_fraction": 0.8333333333333334,
+        "tt_dominated_fraction": 0.0,
+        "tdvp_dominated_fraction": 0.16666666666666666
+      },
+      "recommendations": [
+        "Certified bound is moderately conservative (10-100x). The bound is useful for certification but not for optimization.",
+        "FSP error dominates in most cases. Consider adaptive FSP expansion or tighter FSP bounds."
+      ]
+    },
+    "wall_time": 4.522745132446289
   },
-  "scaling": {
-    "species_counts": [
-      2,
-      3,
-      4,
-      5,
-      6,
-      8,
-      10
-    ],
-    "max_copy": 15,
-    "results": [
+  "compressibility_predictors": {
+    "predictions": {
+      "birth-death": {
+        "network": "birth_death",
+        "tree_width": 0,
+        "deficiency": 0,
+        "modularity": 1.0,
+        "predicted_rank_bound": 1,
+        "best_predictor": "tree_width",
+        "compressibility_score": 1.0,
+        "recommended_chi": 10
+      },
+      "gene-expression": {
+        "network": "gene_expression",
+        "tree_width": 1,
+        "deficiency": 1,
+        "modularity": 0.0,
+        "predicted_rank_bound": 20,
+        "best_predictor": "tree_width",
+        "compressibility_score": 0.4747814653056943,
+        "recommended_chi": 40
+      }
+    },
+    "validation": {
+      "total_validated": 2,
+      "accurate_count": 2,
+      "accuracy_rate": 1.0,
+      "summary": "Graph-theoretic predictors are accurate for 2/2 models (100%). Tree-width and deficiency provide tight bounds for structured networks."
+    },
+    "accuracy_rate": 1.0,
+    "summary": "Graph-theoretic predictors are accurate for 2/2 models (100%). Tree-width and deficiency provide tight bounds for structured networks."
+  },
+  "smc_comparison": {
+    "comparisons": [
       {
-        "n_species": 2,
-        "state_space_size": 225,
-        "mpo_parameters": 3600,
-        "compression_ratio": 14.0625,
-        "bond_dims": [
-          1,
-          8,
-          1
-        ],
-        "dense_size": 50625,
-        "dense_shape": [
-          225,
-          225
-        ]
+        "network": "birth_death",
+        "smc_verdict": "FALSE",
+        "tncheck_verdict": "FALSE",
+        "verdicts_agree": true,
+        "smc_samples": 115,
+        "smc_time": 0.0014882087707519531,
+        "tncheck_time": 0.006693840026855469,
+        "runtime_ratio": 0.22232511753811085,
+        "smc_probability": 0.0,
+        "tncheck_probability": 0.0,
+        "error_comparison": "SMC: PAC-correct with (\u03b1=0.01, \u03b2=0.01), CI=[0.0000, 0.0545]. TN-Check: certified \u03b5=0.00e+00, verdict margin=0.5000."
       },
       {
-        "n_species": 3,
-        "state_space_size": 3375,
-        "mpo_parameters": 37800,
-        "compression_ratio": 301.3392857142857,
-        "bond_dims": [
-          1,
-          12,
-          12,
-          1
-        ],
-        "dense_size": 11390625,
-        "dense_shape": [
-          3375,
-          3375
-        ]
-      },
-      {
-        "n_species": 4,
-        "state_space_size": 50625,
-        "mpo_parameters": 122400,
-        "compression_ratio": 20938.648897058825,
-        "bond_dims": [
-          1,
-          16,
-          16,
-          16,
-          1
-        ],
-        "dense_size": 2562890625,
-        "dense_shape": [
-          50625,
-          50625
-        ]
-      },
-      {
-        "n_species": 5,
-        "state_space_size": 759375,
-        "mpo_parameters": 279000,
-        "compression_ratio": 2066847.2782258065,
-        "bond_dims": [
-          1,
-          20,
-          20,
-          20,
-          20,
-          1
-        ]
-      },
-      {
-        "n_species": 6,
-        "state_space_size": 11390625,
-        "mpo_parameters": 529200,
-        "compression_ratio": 245174485.80994898,
-        "bond_dims": [
-          1,
-          24,
-          24,
-          24,
-          24,
-          24,
-          1
-        ]
-      },
-      {
-        "n_species": 8,
-        "state_space_size": 2562890625,
-        "mpo_parameters": 1396800,
-        "compression_ratio": 4702468754089.984,
-        "bond_dims": [
-          1,
-          32,
-          32,
-          32,
-          32,
-          32,
-          32,
-          32,
-          1
-        ]
-      },
-      {
-        "n_species": 10,
-        "state_space_size": 576650390625,
-        "mpo_parameters": 2898000,
-        "compression_ratio": 1.1474315838784165e+17,
-        "bond_dims": [
-          1,
-          40,
-          40,
-          40,
-          40,
-          40,
-          40,
-          40,
-          40,
-          40,
-          1
-        ]
+        "network": "gene_expression",
+        "smc_verdict": "FALSE",
+        "tncheck_verdict": "INDETERMINATE",
+        "verdicts_agree": true,
+        "smc_samples": 115,
+        "smc_time": 0.0017049312591552734,
+        "tncheck_time": 0.0008492469787597656,
+        "runtime_ratio": 2.0075800112296465,
+        "smc_probability": 0.0,
+        "tncheck_probability": 0.0,
+        "error_comparison": "SMC: PAC-correct with (\u03b1=0.01, \u03b2=0.01), CI=[0.0000, 0.0545]. TN-Check: certified \u03b5=1.00e+00, verdict margin=0.5000."
       }
     ],
-    "all_compiled": true,
-    "passed": true
+    "summary": {
+      "num_compared": 2,
+      "verdict_agreement_rate": 1.0,
+      "mean_runtime_ratio": 1.1149525643838787
+    }
+  },
+  "metadata": {
+    "total_wall_time": 15.615864992141724,
+    "quick_mode": true,
+    "timestamp": "2026-03-02 05:55:16"
   }
 }

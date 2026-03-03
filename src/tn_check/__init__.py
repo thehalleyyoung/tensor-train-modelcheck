@@ -15,9 +15,14 @@ Key features:
 - Spectral-gap-informed fixpoint convergence for unbounded-until
 - Independent certificate verification via verification traces
 - Three-valued semantics for nested probability operators
+- FSP-TT coupling analysis with joint M-χ optimization
+- Stiffness-aware adaptive TDVP integration
+- Graph-theoretic compressibility predictors (tree-width, deficiency, modularity)
+- Statistical model checking (SPRT) comparison baseline
+- Error bound tightness characterization
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __author__ = "TN-Check Authors"
 
 from tn_check.config import TNCheckConfig

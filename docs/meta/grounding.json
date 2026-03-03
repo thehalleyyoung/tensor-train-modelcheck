@@ -182,6 +182,78 @@
       "code": "src/tn_check/evaluation/prism_crossvalidation.py::export_storm_benchmark(), run_verdict_comparison_table()",
       "test": "tests/test_improvements.py",
       "numerical_verification": "Run: export_storm_benchmark() to generate .pm and .csl files"
+    },
+    {
+      "id": "C21",
+      "paper_ref": "Theorem 8 (FSP Non-conservativity Bound)",
+      "claim": "1 - ||e^{Q_FSP·t} p₀||₁ ≤ 1 - e^{-λ_exit·t} where λ_exit is the maximum boundary exit rate; probability mass loss is monotone and bounded by this exponential envelope",
+      "proof": "src/tn_check/coupling/fsp_tt_coupling.py docstring (Theorem: FSP Non-conservativity Bound)",
+      "code": "src/tn_check/coupling/fsp_tt_coupling.py::fsp_nonconservativity_bound(), compute_boundary_exit_rate()",
+      "test": "tests/test_path_b_improvements.py::TestFSPTTCoupling::test_nonconservativity_bound",
+      "numerical_verification": "run_all_experiments(quick=True)['experiments']['fsp_tt_coupling']"
+    },
+    {
+      "id": "C22",
+      "paper_ref": "Proposition 3 (M-χ Coupling Bound)",
+      "claim": "For exponential-tail distributions on [0,M)^N, the TT rank χ needed for L1 error ε satisfies χ ≤ C·log(M)/log(1/ε); FSP dimension and TT rank are logarithmically coupled",
+      "proof": "src/tn_check/coupling/fsp_tt_coupling.py docstring (Proposition: M-χ Coupling Bound)",
+      "code": "src/tn_check/coupling/fsp_tt_coupling.py::FSPTTCouplingAnalysis.analyze_coupling(), joint_m_chi_optimization()",
+      "test": "tests/test_path_b_improvements.py::TestFSPTTCoupling::test_coupling_analysis",
+      "numerical_verification": "run_all_experiments(quick=True)['experiments']['fsp_tt_coupling']"
+    },
+    {
+      "id": "C23",
+      "paper_ref": "Proposition 4 (Stiffness-Adapted Error Bound)",
+      "claim": "ε_TDVP(dt) ≤ dt²·||Q(I-P_TM)Qp||₁/2; for stiff systems (κ > 10⁴), adaptive step control reduces total error by avoiding CFL-violating steps",
+      "proof": "src/tn_check/stiffness/adaptive_tdvp.py docstring (Stiffness-Adapted Error Bound)",
+      "code": "src/tn_check/stiffness/adaptive_tdvp.py::StiffnessAwareTDVP.evolve_adaptive(), StepSizeController.propose_step()",
+      "test": "tests/test_path_b_improvements.py::TestStiffness::test_stiffness_analysis, test_adaptive_tdvp",
+      "numerical_verification": "run_all_experiments(quick=True)['experiments']['stiffness_analysis']"
+    },
+    {
+      "id": "C24",
+      "paper_ref": "Theorem 9 (Tree-width Rank Bound)",
+      "claim": "For a CRN with interaction graph tree-width τ and max species copy number d, the TT rank satisfies χ_max ≤ d^τ",
+      "proof": "src/tn_check/evaluation/graph_predictors.py docstring (Theorem: Tree-width Rank Bound)",
+      "code": "src/tn_check/evaluation/graph_predictors.py::compute_treewidth_upper_bound()",
+      "test": "tests/test_path_b_improvements.py::TestGraphPredictors::test_treewidth",
+      "numerical_verification": "run_all_experiments(quick=True)['experiments']['compressibility_predictors']"
+    },
+    {
+      "id": "C25",
+      "paper_ref": "Proposition 5 (Deficiency-Zero Steady-State Rank)",
+      "claim": "If a CRN has deficiency δ=0 and is weakly reversible, its steady-state distribution has TT rank 1 (product form, Feinberg 1972/Anderson-Craciun-Kurtz 2010)",
+      "proof": "src/tn_check/evaluation/graph_predictors.py docstring (Proposition: Deficiency-Zero Steady-State Rank)",
+      "code": "src/tn_check/evaluation/graph_predictors.py::compute_crn_deficiency()",
+      "test": "tests/test_path_b_improvements.py::TestGraphPredictors::test_deficiency",
+      "numerical_verification": "run_all_experiments(quick=True)['experiments']['compressibility_predictors']"
+    },
+    {
+      "id": "C26",
+      "paper_ref": "Proposition 6 (Modularity Rank Bound)",
+      "claim": "If a CRN interaction graph has modularity Q > 0.3, the TT rank is bounded by the product of separator dimensions between communities",
+      "proof": "src/tn_check/evaluation/graph_predictors.py docstring (Modularity Rank Bound)",
+      "code": "src/tn_check/evaluation/graph_predictors.py::compute_modularity()",
+      "test": "tests/test_path_b_improvements.py::TestGraphPredictors::test_modularity",
+      "numerical_verification": "run_all_experiments(quick=True)['experiments']['compressibility_predictors']"
+    },
+    {
+      "id": "C27",
+      "paper_ref": "Section 6.4 (Error Bound Tightness)",
+      "claim": "Certified error bounds (Theorem 7) are within 10-100× of actual L1 errors across tested models; tightness ratio is model-dependent but finite, confirming bounds are not vacuous",
+      "proof": null,
+      "code": "src/tn_check/evaluation/tightness.py::run_tightness_study()",
+      "test": "tests/test_path_b_improvements.py::TestTightness::test_tightness_study",
+      "numerical_verification": "run_all_experiments(quick=True)['experiments']['error_tightness']"
+    },
+    {
+      "id": "C28",
+      "paper_ref": "Section 6.5 (SMC Comparison)",
+      "claim": "TN-Check verdicts agree with importance-sampling SPRT on all tested properties; TN-Check provides certified bounds while SMC provides only statistical confidence",
+      "proof": null,
+      "code": "src/tn_check/smc/statistical_checker.py::run_smc_comparison()",
+      "test": "tests/test_path_b_improvements.py::TestSMC::test_gillespie, test_smc_comparison",
+      "numerical_verification": "run_all_experiments(quick=True)['experiments']['smc_comparison']"
     }
   ]
 }
