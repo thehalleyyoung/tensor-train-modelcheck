@@ -1,5 +1,0 @@
-{
-  "category": "B",
-  "key_quote": "the absence of sufficient conditions guaranteeing low TT rank... the tool provides formal verification conditional on an unverified assumption",
-  "rationale": "All reviewers find the Metzler semigroup error contraction, three-valued semantics, and O(N) complexity separation genuinely novel. The critiques focus on execution depth: missing compressibility theorem, unanalyzed TDVP convergence for non-Hermitian operators, no PRISM/Storm verdict comparison, and inadequate clamping bias analysis — all depth/rigor issues."
-}
