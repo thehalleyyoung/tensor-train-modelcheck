@@ -1,0 +1,346 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{microtype}
+\hypersetup{hidelinks}
+
+\title{TN-Check: Time-Bounded CSL Model Checking of Chemical Master Equations\\ on Tensor-Train State Vectors}
+\author{TN-Check authors}
+\date{Preprint}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Time-bounded reachability on the chemical master equation (CME) is a core query
+in stochastic systems biology, and probabilistic model checkers answer it by
+uniformisation on an explicitly stored state space. The state space of a reaction
+network grows as the product of the copy-number ranges of its species, and
+explicit and hybrid engines store at least one probability vector over the
+relevant states. TN-Check evaluates the time-bounded until operator of CSL
+directly on tensor-train (TT) representations of the probability vector and the
+CME generator. It applies the absorbing projection of the until operator to the
+generator in matrix-product-operator form, runs uniformisation with TT rounding,
+and reports the Poisson truncation mass and the finite-state-projection (FSP)
+leakage alongside the result. On a shared suite exported with identical FSP
+semantics to Storm 1.14 and PRISM 4.10, TN-Check agrees with Storm to within
+$3\cdot10^{-9}$ on all cascade models up to $3.4\cdot10^7$ states and on toggle
+switches up to $1.6\cdot10^5$ states. On an $n$-stage gene-expression cascade
+with 32 copy numbers per species it answers the query for $n=6$ to $n=10$
+($1.1\cdot10^{9}$ to $1.1\cdot10^{15}$ states) in 3 to 18 minutes on two CPU
+cores and 4~GiB of memory, with every answer inside the 99\% confidence interval
+of $10^6$ independent SSA runs. With 16~GiB, Storm does not finish $n=6$ within
+an hour and PRISM runs out of memory or time on $n=6$. The TT-CME solver of Ion et
+al.\ is faster on the largest cascades and agrees with TN-Check to within
+$5\cdot10^{-6}$ there; where an exact reference exists, TN-Check's error is one to
+five orders of magnitude smaller than TT-CME's.
+\end{abstract}
+
+\section{Introduction}
+
+A stochastic reaction network with $N$ species, each truncated to $d$ copy numbers,
+has a finite-state-projection (FSP) state space of $d^N$ states
+\cite{munsky2006fsp}. Continuous stochastic logic (CSL) model checking of such a
+model asks for probabilities such as $\Pr[\mathit{true}\ \mathrm{U}^{\le T}\ \phi]$,
+the probability that a target set is reached by time $T$. Storm
+\cite{hensel2022storm} and PRISM \cite{kwiatkowska2011prism} compute this by
+uniformisation \cite{baier2003csl,fox1988poisson} on an explicit sparse matrix or
+on a hybrid representation that still stores probability vectors explicitly. The
+memory cost of these vectors, $8 d^N$ bytes each, bounds the models they can
+check.
+
+Tensor trains (TT, also called matrix product states) \cite{oseledets2011tt} store a
+$d^N$ vector with $O(N d \chi^2)$ numbers, where $\chi$ is the TT rank. Earlier work
+showed that CME solutions of many networks have low TT rank and solved the CME
+directly in TT or quantised-TT format
+\cite{kazeev2014qtt,dolgov2015state,ion2021ttcme}. The inspected contributions address transient CME solutions and parameter
+inference. The candidate distinction here is the CSL until projection and
+query interface; TT compression and scalable CME evolution are established
+prior work, and a universal absence of earlier TT property checking has not
+been established.
+
+\paragraph{Claim.} Time-bounded CSL until on FSP-truncated CMEs can be evaluated in
+TT format with accuracy comparable to an explicit model checker on models that
+both can handle, and on models whose state space is several orders of magnitude
+beyond what explicit and hybrid engines handle in the same memory.
+
+\paragraph{Contributions.}
+\begin{itemize}
+\item An algorithm for $\Pr[\phi_1\,\mathrm{U}^{\le T}\,\phi_2]$ on TT state vectors:
+  the absorbing projection is applied to the generator as a column mask in MPO
+  form, uniformisation is accumulated on scalars, and the result carries the Poisson
+  tail and the FSP leakage as explicit error terms (Section~\ref{sec:approach}).
+\item A PRISM exporter with the same FSP sink semantics as the TT compiler, which
+  makes TN-Check, Storm and PRISM answer the identical query on the identical CTMC
+  (Section~\ref{sec:impl}).
+\item An evaluation against Storm (sparse and hybrid engines), PRISM (explicit,
+  sparse, hybrid, MTBDD), the TT-CME solver of Ion et al.\ \cite{ion2021ttcme}, an
+  independent scipy reference, and Gillespie simulation \cite{gillespie1977ssa},
+  on models from $50$ to $1.1\cdot10^{15}$ states (Section~\ref{sec:eval}).
+\end{itemize}
+
+\section{Background and related work}
+
+\paragraph{CSL model checking of CTMCs.} For a CTMC with generator $Q$ (column
+convention, $\dot p = Qp$), $\Pr[\phi_1\,\mathrm{U}^{\le T}\,\phi_2]$ equals the
+probability mass in $\mathrm{Sat}(\phi_2)$ at time $T$ of the chain in which every
+state outside $\mathrm{Sat}(\phi_1)\setminus\mathrm{Sat}(\phi_2)$ is absorbing
+\cite{baier2003csl}. Uniformisation writes $e^{Q'T}p_0=\sum_k
+\mathrm{Pois}(k;qT)\,P^kp_0$ with $P=I+Q'/q$ and $q$ at least the largest exit rate;
+the Poisson series is truncated with Fox--Glynn style bounds \cite{fox1988poisson}.
+Storm and PRISM implement this on sparse matrices and on MTBDD-based hybrid
+representations. STAMINA \cite{neupane2019stamina} truncates infinite CTMCs on the
+fly and bounds the probability of the truncated part; Mikeev et al.\
+\cite{mikeev2013dta} check timed-automaton properties on large Markov population
+models with on-the-fly state-space truncation. These methods keep an explicit
+vector over the retained states.
+
+\paragraph{Tensor methods for the CME.} Kazeev et al.\ \cite{kazeev2014qtt} solved the
+CME in quantised TT format; Dolgov and Khoromskij \cite{dolgov2015state} solved it
+with a simultaneous space-time TT representation and the AMEn solver
+\cite{dolgov2014amen}; Ion et al.\ \cite{ion2021ttcme} use TT for the CME and for
+parameter inference and provide the TT-CME code we compare against. Buchholz et
+al.\ \cite{buchholz2017compact} study hierarchical-Tucker compression of solution
+vectors in Kronecker-structured Markov models. Nicholson and Gingrich
+\cite{nicholson2023rare} use tensor networks for rare-event probabilities in
+reaction-diffusion CMEs.
+
+\section{Approach}\label{sec:approach}
+
+\paragraph{Generator.} Every reaction $r$ with stoichiometry $v_r$ and a propensity
+that factors over species, $a_r(n)=\prod_k f_{r,k}(n_k)$ (mass action, Hill and
+Michaelis--Menten kinetics do), contributes a rank-one MPO
+$\bigotimes_k S_{r,k}F_{r,k}$, where $F_{r,k}=\mathrm{diag}(f_{r,k})$ and $S_{r,k}$
+shifts species $k$ by $v_{r,k}$, plus a rank-one diagonal term $-\bigotimes_k F_{r,k}$.
+Shifts that leave the box are dropped from the off-diagonal part but kept on the
+diagonal, so probability that leaves the box is lost; this is the FSP sink. The sum
+is rounded to a compact MPO.
+
+\paragraph{Absorbing projection.} Let $m=\mathrm{Sat}(\phi_1)\odot(1-\mathrm{Sat}(\phi_2))$.
+For axis-aligned atomic propositions both satisfaction sets are rank-one TTs, so
+$m$ has rank one and $Q'=Q\,\mathrm{diag}(m)$ has the MPO rank of $Q$. Zeroing columns
+makes the states outside $m$ absorbing while keeping the inflow into
+$\mathrm{Sat}(\phi_2)$.
+
+\paragraph{Uniformisation in TT format.} With
+$q\ge\max_n\sum_r a_r(n)$, computed from the per-species factors as
+$\sum_r\prod_k\max f_{r,k}$, and $P=I+Q'/q$, TN-Check iterates
+$x_{k+1}=\mathcal{R}_{\chi,\varepsilon}(Px_k)$, where $\mathcal{R}$ is TT-SVD rounding
+\cite{oseledets2011tt} to rank at most $\chi$ and relative accuracy $\varepsilon$. Only
+scalars are accumulated:
+\[
+\hat p=\sum_{k=0}^{K} w_k\,\langle \mathrm{Sat}(\phi_2),x_k\rangle,\qquad
+\hat m=\sum_{k=0}^{K} w_k\,\langle \mathbf 1,x_k\rangle,\qquad
+w_k=\mathrm{Pois}(k;qT),
+\]
+with $K$ the smallest index whose Poisson right tail is below $10^{-10}$. Inner
+products with rank-one masks cost $O(Nd\chi^2)$, so no full vector is formed.
+
+\paragraph{Error terms.} TN-Check reports three quantities with every answer. The
+Poisson tail $\tau=1-\sum_k w_k$ bounds the uniformisation truncation, because every
+exact iterate has $\|P^kp_0\|_1\le1$. For exact iterates, the deficit $s=1-\hat m-\tau$ bounds the FSP
+error from above: the probability of the untruncated CME lies in
+$[\hat p,\hat p+s]$ up to the other terms \cite{munsky2006fsp}. The TT rounding error is
+estimated by rerunning with $2\chi$ and $\varepsilon/100$ and taking the difference of
+the two answers; the checker widens its interval by this amount and returns
+INDETERMINATE when the interval contains the threshold. The rounding estimate is
+empirical; the Poisson and FSP terms hold for the exact iterates. For an
+untruncated nonexplosive CME, the latter requires the same until property
+and consistent initial distribution; it concerns paths that exit the box
+before termination. Finite-box agreement alone does not validate this
+infinite-state approximation. Rounding the
+generator and the uniformisation MPO also introduces perturbations. The
+reported interval is therefore a numerical diagnostic. A trace consistency
+check validates the recorded scalar arithmetic and threshold comparison.
+
+\paragraph{Unbounded until.} For unbounded until TN-Check doubles the horizon $T$ and
+uses $\Pr[\mathrm{U}^{\le T}]\le\Pr[\mathrm{U}]\le\Pr[\mathrm{U}^{\le T}]+\langle m,x(T)\rangle+s$,
+where $\langle m,x(T)\rangle$ is the mass still in transient states, until the interval
+is narrower than a tolerance.
+
+\section{Implementation}\label{sec:impl}
+
+TN-Check is a Python package (numpy, scipy) with a command-line interface that reads
+YAML, JSON or SBML networks and CSL formulas. The TT engine is
+\path{tn_check/checker/tt_transient.py}. Three components exist only for
+validation and share no numerical code with the engine:
+an explicit FSP generator assembled state by state from the propensity functions
+with scipy \texttt{expm\_multiply} for the until probability
+(\path{reference/explicit_cme.py}); a vectorised Gillespie simulator with Wilson and
+Clopper--Pearson intervals \cite{wilson1927} (\path{reference/ssa.py}); and a PRISM
+exporter (\texttt{export/prism.py}). The exporter writes one bounded integer variable
+per species, guards every command by the box, and redirects out-of-box firings to an
+absorbing sink in which all counts are reset, so the exported CTMC is the FSP chain
+used by the TT compiler; atomic propositions exclude the sink.
+
+\section{Evaluation}\label{sec:eval}
+
+\paragraph{Questions.}
+RQ1: Does TN-Check compute the same probabilities as Storm and PRISM?
+RQ2: How do time and memory compare with explicit, hybrid and TT baselines?
+RQ3: Does TN-Check give correct answers on models that the explicit tools cannot check?
+
+\paragraph{Models and properties.} The suite contains the four example networks of the
+repository (birth--death, two-stage gene expression, a toggle switch with Hill
+repression, and Michaelis--Menten enzyme kinetics), the toggle switch with boxes of
+$200^2$ and $400^2$, and an $n$-stage cascade for $n=2,\dots,10$ in which $S_1$ is
+produced at rate 1, $S_i$ is produced with Hill propensity $x_{i-1}^2/(25+x_{i-1}^2)$,
+and each species degrades at rate $0.1$, with copy numbers $0,\dots,31$ per species.
+Each model has one property $\Pr[\mathit{true}\ \mathrm{U}^{\le T}\ x_k\ge c]$; for the
+cascade it is $x_n\ge3$ with $T=10n$.
+
+\paragraph{Setup.} All tools run in separate Modal containers: Storm 1.14.0 (Docker image
+\path{movesrwth/storm:1.14.0}) and PRISM 4.10.1 with 1 CPU and 16~GiB (Java heap 12~GiB),
+TN-Check and the SSA with 2 CPUs and 4~GiB, TT-CME (commit \texttt{4aebc15}, torchTT 0.5.0,
+Crank--Nicolson time stepping, AMEn tolerance $10^{-8}$) with 2 CPUs and 8~GiB.
+TT-CME uses a reflecting copy-number boundary, while TN-Check, Storm and PRISM
+use an FSP sink; boundary excursions can therefore affect their probability
+difference. Time is wall-clock time of the process, memory is its peak resident set. The timeout
+is 600~s for the small models and 1200~s for $n=5,6$. The reference value is the scipy
+explicit computation where it fits (all models up to $10^6$ states) and Storm sparse
+otherwise. TN-Check runs with $(\chi,\varepsilon)=(32,10^{-8})$ and $(64,10^{-10})$.
+
+\paragraph{RQ1: agreement.} Table~\ref{tab:h2h} lists the absolute difference from the
+reference. With $\chi=64$, TN-Check is within $7\cdot10^{-11}$ of the reference on
+birth--death and the three toggle switches, within $5.4\cdot10^{-9}$ on gene expression,
+and within $3\cdot10^{-9}$ on the cascades up to $n=5$. Storm sparse and hybrid agree with
+the scipy reference to within $4\cdot10^{-11}$; PRISM agrees to within $6\cdot10^{-8}$ with its
+default settings, except on gene expression, where its sparse, hybrid and MTBDD engines
+return a value $7\cdot10^{-5}$ below the reference. The enzyme kinetics model has two
+conservation laws, and in the species ordering used its distribution needs TT rank 120:
+at $\chi=32$ and $\chi=64$ TN-Check is off by $0.25$ and $10^{-2}$, the rank-doubling
+estimate reports a difference of $0.24$, and the checker returns INDETERMINATE for
+thresholds inside the widened interval; at $\chi=128$ the error is $2\cdot10^{-9}$ and at
+$\chi=256$ it is $6\cdot10^{-12}$. Across the 51 models of the repository's model library,
+the MPO generator matches propensities evaluated directly at 200 random states of every
+model to within $1.6\cdot10^{-13}$, and on the 47 models with at most $1.1\cdot10^6$ states
+the TT answer to a reachability property differs from the scipy reference by at most
+$4.1\cdot10^{-9}$.
+
+\begin{table}[t]
+\centering\small
+\resizebox{\textwidth}{!}{\input{paper/tables/h2h.tex}}
+\caption{Wall time (s), peak memory (GB) and absolute error against the reference.
+TO: timeout. For $n=6$ the TT error column is empty because no exact reference exists;
+see Table~\ref{tab:scale}.}
+\label{tab:h2h}
+\end{table}
+
+\paragraph{RQ2: cost.} Where the state space fits, Storm sparse is the fastest tool by one
+to two orders of magnitude: it builds only the states relevant to the property (for the
+cascade, the states with $x_n\le3$) and needs 0.1 to 46~s on all models up to $n=5$.
+TN-Check needs 2 to 140~s on the same models. Its cost grows with the number of
+uniformisation steps, which is about $qT$ (116 to 10\,665 MPO applications in this suite),
+and with $\chi^3$. TT-CME is slower than TN-Check at $\chi=64$ on all models up to $n=4$ and
+faster on the cascades from $n=5$ on (Tables~\ref{tab:h2h} and~\ref{tab:scale}): its implicit time
+stepping does not depend on $q$, while TN-Check's step count grows with $n$ through both
+$q$ and $T=10n$. At AMEn tolerance $10^{-8}$ the TT-CME error against the exact reference is
+$9\cdot10^{-8}$ to $1.7\cdot10^{-5}$ across the suite, compared with $2\cdot10^{-11}$ to
+$5.4\cdot10^{-9}$ for TN-Check at $\chi=64$ (excluding the enzyme model). These observed accuracy differences are not a matched-accuracy ranking:
+the solvers use different boundaries, numerical schemes and stopping criteria.
+A matched-boundary, matched-error cost comparison remains open.
+
+\paragraph{RQ3: beyond explicit engines.} For $n=6$ the relevant state space explored by
+Storm has $1.3\cdot10^8$ states and $1.2\cdot10^9$ transitions. Storm sparse builds the model
+in 568 to 906~s and does not finish the transient analysis within 3\,500~s; its hybrid
+engine stops with a full BDD unique table; PRISM explicit runs out of its 12~GiB Java heap,
+and PRISM sparse and hybrid do not finish within 1\,200~s. For $n=7$ Storm sparse is still
+building the model after 2\,400~s; the relevant state space has about $4\cdot32^6\approx
+4.3\cdot10^9$ states, so a single probability vector over it takes 34~GB. TN-Check answers
+$n=6,\dots,10$ with $\chi=32$ in 3 to 18 minutes and with $\chi=64$ in 10 to 50 minutes,
+using at most 0.7~GB of memory (Table~\ref{tab:scale}). Each answer lies inside the Wilson
+99\% interval of $10^6$ SSA runs; the change from $\chi=32$ to $\chi=64$ is at most
+$1.9\cdot10^{-5}$; and the $\chi=64$ answers agree with TT-CME at tolerance $10^{-8}$ to within
+$5\cdot10^{-6}$.
+
+\begin{table}[t]
+\centering\small
+\resizebox{\textwidth}{!}{\input{paper/tables/scale.tex}}
+\caption{Cascade models with 32 copy numbers per species. $|\Delta|$: change between
+the $\chi=32$ and $\chi=64$ runs. Times in seconds.}
+\label{tab:scale}
+\end{table}
+
+\paragraph{Small-model rank stress test.} Six model/horizon cases comprise a
+birth--death reachability control, an empty-goal leaking control, a $10\times10$
+toggle switch at $T=1,5$, and a $6^3$ three-stage cascade at $T=1,5$. At each
+requested rank $1,2,4,8$, the checker reports the solution computed at twice
+that rank and widens its interval using the rank difference. An independently
+enumerated generator is solved by both sparse and dense matrix exponentials.
+The maximum difference between these references is $1.12\cdot10^{-15}$; all 24 reported intervals
+contain the finite-box reference within a $10^{-9}$ comparison tolerance.
+The largest probability error at requested rank 1 is 0.1116, while at
+requested rank 4 or 8 it is below $2.8\cdot10^{-11}$. These finite tests
+measure numerical behavior across rank caps; the rounding term remains an
+empirical estimate. Raw outputs are in \texttt{results/adversarial\_before.jsonl}.
+
+\paragraph{Finite-box residual witness.} A fresh frozen diagnostic enumerates
+an independent substochastic uniformisation matrix $P$ over the box and
+records every approximate TT iterate $x_k$. In exact arithmetic, with
+$x_0=p_0$, define $d_j=\|x_j-Px_{j-1}\|_1$. Contractivity gives
+$\|x_k-P^kp_0\|_1\le\sum_{j=1}^k d_j$ by induction, hence the goal-scalar
+error is at most $B=\tau+\sum_{k=0}^K w_k\sum_{j=1}^k d_j$.
+This residual includes rounded-operator perturbations because $P$ is
+independently enumerated. Twenty runs use boxes of 10, 100 and 216 states,
+horizons 1 and 5, and ranks 1, 2, 4, 8. All computed envelopes contain the
+sparse-exponential reference within $10^{-12}$; low-rank toggle radii range
+from 1.03 to 3.30 and therefore yield no useful probability restriction.
+A deliberately injected identity operator gives zero reachability at both
+ranks 1 and 2, while the reference is 0.075866; rank agreement misses this
+fault and the residual radius is approximately 2. This is an artificial
+control, not a failure observed in the unmodified engine. Across all 22 runs,
+TT iteration with witness evaluation takes 0.177\,s, witness evaluation
+0.029\,s, and explicit transient solves 0.046\,s (one CPU thread; indicative
+microbenchmarks). The witness enumerates the box and sacrifices TT memory
+scaling. Floating-point residuals and Poisson weights are not outward-rounded,
+so this implementation remains a diagnostic rather than a certified enclosure.
+Code and every row are in \texttt{benchmarks/scripts/residual\_witness.py} and
+\texttt{results/residual\_witness.jsonl}.
+
+\section{Limitations}
+
+The rounding term of the error report is an empirical estimate; a small change
+between ranks does not establish a universal error bound. The rounded MPO
+perturbation is outside the Poisson and FSP bounds for exact iterates, and the evaluation
+covers one scalable family (a feed-forward cascade) beyond the reach of explicit tools;
+networks with feedback across many species can have higher TT ranks. Models whose
+reachable set is much smaller than the copy-number box, such as networks with
+conservation laws, are better served by an explicit engine that explores reachable
+states. The uniformisation step count grows with the maximal exit rate over the box,
+so stiff networks with large copy-number bounds are expensive. TN-Check handles atomic
+propositions on single species and their Boolean combinations; nested probability
+operators are not part of this evaluation.
+
+\section{Conclusion}
+
+Applying the until projection to the CME generator in MPO form and running
+uniformisation on TT vectors lets a CSL query that explicit engines answer exactly on
+$10^7$ states be answered with errors of order $10^{-9}$ on those models and within
+Monte Carlo confidence intervals on $10^{9}$ to $10^{15}$ states. All raw outputs, job
+definitions and scripts are in the repository.
+
+\bibliographystyle{plain}
+\begin{thebibliography}{99}
+\bibitem{baier2003csl} C.~Baier, B.~Haverkort, H.~Hermanns, J.-P.~Katoen. Model-checking algorithms for continuous-time Markov chains. \emph{IEEE Trans. Softw. Eng.} 29(6):524--541, 2003. doi:10.1109/TSE.2003.1205180
+\bibitem{buchholz2017compact} P.~Buchholz, T.~Dayar, J.~Kriege, M.~C.~Orhan. On compact solution vectors in Kronecker-based Markovian analysis. \emph{Performance Evaluation} 115:132--149, 2017. doi:10.1016/j.peva.2017.08.002
+\bibitem{dolgov2014amen} S.~V.~Dolgov, D.~V.~Savostyanov. Alternating minimal energy methods for linear systems in higher dimensions. \emph{SIAM J. Sci. Comput.} 36(5):A2248--A2271, 2014. doi:10.1137/140953289
+\bibitem{dolgov2015state} S.~V.~Dolgov, B.~N.~Khoromskij. Simultaneous state-time approximation of the chemical master equation using tensor product formats. \emph{Numer. Linear Algebra Appl.} 22(2):197--219, 2015. doi:10.1002/nla.1942
+\bibitem{fox1988poisson} B.~L.~Fox, P.~W.~Glynn. Computing Poisson probabilities. \emph{Commun. ACM} 31(4):440--445, 1988. doi:10.1145/42404.42409
+\bibitem{gillespie1977ssa} D.~T.~Gillespie. Exact stochastic simulation of coupled chemical reactions. \emph{J. Phys. Chem.} 81(25):2340--2361, 1977. doi:10.1021/j100540a008
+\bibitem{hensel2022storm} C.~Hensel, S.~Junges, J.-P.~Katoen, T.~Quatmann, M.~Volk. The probabilistic model checker Storm. \emph{Int. J. Softw. Tools Technol. Transf.} 24:589--610, 2022. doi:10.1007/s10009-021-00633-z
+\bibitem{ion2021ttcme} I.~G.~Ion, C.~Wildner, D.~Loukrezis, H.~Koeppl, H.~De Gersem. Tensor-train approximation of the chemical master equation and its application for parameter inference. \emph{J. Chem. Phys.} 155:034102, 2021. doi:10.1063/5.0045521
+\bibitem{kazeev2014qtt} V.~Kazeev, M.~Khammash, M.~Nip, C.~Schwab. Direct solution of the chemical master equation using quantized tensor trains. \emph{PLoS Comput. Biol.} 10(3):e1003359, 2014. doi:10.1371/journal.pcbi.1003359
+\bibitem{kwiatkowska2011prism} M.~Kwiatkowska, G.~Norman, D.~Parker. PRISM 4.0: Verification of probabilistic real-time systems. In \emph{CAV 2011}, LNCS 6806, pp.~585--591, 2011. doi:10.1007/978-3-642-22110-1\_47
+\bibitem{mikeev2013dta} L.~Mikeev, M.~R.~Neuh\"au{\ss}er, D.~Spieler, V.~Wolf. On-the-fly verification and optimization of DTA-properties for large Markov chains. \emph{Form. Methods Syst. Des.} 43:313--337, 2013. doi:10.1007/s10703-012-0165-1
+\bibitem{munsky2006fsp} B.~Munsky, M.~Khammash. The finite state projection algorithm for the solution of the chemical master equation. \emph{J. Chem. Phys.} 124:044104, 2006. doi:10.1063/1.2145882
+\bibitem{neupane2019stamina} T.~Neupane, C.~J.~Myers, C.~Madsen, H.~Zheng, Z.~Zhang. STAMINA: STochastic approximate model-checker for INfinite-state analysis. In \emph{CAV 2019}, LNCS 11561, pp.~540--549, 2019. doi:10.1007/978-3-030-25540-4\_31
+\bibitem{nicholson2023rare} S.~B.~Nicholson, T.~R.~Gingrich. Quantifying rare events in stochastic reaction-diffusion dynamics using tensor networks. \emph{Phys. Rev. X} 13:041006, 2023. doi:10.1103/PhysRevX.13.041006
+\bibitem{oseledets2011tt} I.~V.~Oseledets. Tensor-train decomposition. \emph{SIAM J. Sci. Comput.} 33(5):2295--2317, 2011. doi:10.1137/090752286
+\bibitem{wilson1927} E.~B.~Wilson. Probable inference, the law of succession, and statistical inference. \emph{J. Amer. Statist. Assoc.} 22(158):209--212, 1927. doi:10.1080/01621459.1927.10502953
+\end{thebibliography}
+
+\end{document}

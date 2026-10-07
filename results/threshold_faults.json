@@ -1,0 +1,209 @@
+[
+  {
+    "case": "endpoint",
+    "op": ">=",
+    "p": 0.0,
+    "verdict": "true",
+    "expected_accept": true,
+    "accepted": true
+  },
+  {
+    "case": "endpoint",
+    "op": ">=",
+    "p": 0.0,
+    "verdict": "false",
+    "expected_accept": false,
+    "accepted": false
+  },
+  {
+    "case": "endpoint",
+    "op": ">=",
+    "p": 0.5,
+    "verdict": "true",
+    "expected_accept": true,
+    "accepted": true
+  },
+  {
+    "case": "endpoint",
+    "op": ">=",
+    "p": 0.5,
+    "verdict": "false",
+    "expected_accept": false,
+    "accepted": false
+  },
+  {
+    "case": "endpoint",
+    "op": ">=",
+    "p": 1.0,
+    "verdict": "true",
+    "expected_accept": true,
+    "accepted": true
+  },
+  {
+    "case": "endpoint",
+    "op": ">=",
+    "p": 1.0,
+    "verdict": "false",
+    "expected_accept": false,
+    "accepted": false
+  },
+  {
+    "case": "endpoint",
+    "op": ">",
+    "p": 0.0,
+    "verdict": "false",
+    "expected_accept": true,
+    "accepted": true
+  },
+  {
+    "case": "endpoint",
+    "op": ">",
+    "p": 0.0,
+    "verdict": "true",
+    "expected_accept": false,
+    "accepted": false
+  },
+  {
+    "case": "endpoint",
+    "op": ">",
+    "p": 0.5,
+    "verdict": "false",
+    "expected_accept": true,
+    "accepted": true
+  },
+  {
+    "case": "endpoint",
+    "op": ">",
+    "p": 0.5,
+    "verdict": "true",
+    "expected_accept": false,
+    "accepted": false
+  },
+  {
+    "case": "endpoint",
+    "op": ">",
+    "p": 1.0,
+    "verdict": "false",
+    "expected_accept": true,
+    "accepted": true
+  },
+  {
+    "case": "endpoint",
+    "op": ">",
+    "p": 1.0,
+    "verdict": "true",
+    "expected_accept": false,
+    "accepted": false
+  },
+  {
+    "case": "endpoint",
+    "op": "<=",
+    "p": 0.0,
+    "verdict": "true",
+    "expected_accept": true,
+    "accepted": true
+  },
+  {
+    "case": "endpoint",
+    "op": "<=",
+    "p": 0.0,
+    "verdict": "false",
+    "expected_accept": false,
+    "accepted": false
+  },
+  {
+    "case": "endpoint",
+    "op": "<=",
+    "p": 0.5,
+    "verdict": "true",
+    "expected_accept": true,
+    "accepted": true
+  },
+  {
+    "case": "endpoint",
+    "op": "<=",
+    "p": 0.5,
+    "verdict": "false",
+    "expected_accept": false,
+    "accepted": false
+  },
+  {
+    "case": "endpoint",
+    "op": "<=",
+    "p": 1.0,
+    "verdict": "true",
+    "expected_accept": true,
+    "accepted": true
+  },
+  {
+    "case": "endpoint",
+    "op": "<=",
+    "p": 1.0,
+    "verdict": "false",
+    "expected_accept": false,
+    "accepted": false
+  },
+  {
+    "case": "endpoint",
+    "op": "<",
+    "p": 0.0,
+    "verdict": "false",
+    "expected_accept": true,
+    "accepted": true
+  },
+  {
+    "case": "endpoint",
+    "op": "<",
+    "p": 0.0,
+    "verdict": "true",
+    "expected_accept": false,
+    "accepted": false
+  },
+  {
+    "case": "endpoint",
+    "op": "<",
+    "p": 0.5,
+    "verdict": "false",
+    "expected_accept": true,
+    "accepted": true
+  },
+  {
+    "case": "endpoint",
+    "op": "<",
+    "p": 0.5,
+    "verdict": "true",
+    "expected_accept": false,
+    "accepted": false
+  },
+  {
+    "case": "endpoint",
+    "op": "<",
+    "p": 1.0,
+    "verdict": "false",
+    "expected_accept": true,
+    "accepted": true
+  },
+  {
+    "case": "endpoint",
+    "op": "<",
+    "p": 1.0,
+    "verdict": "true",
+    "expected_accept": false,
+    "accepted": false
+  },
+  {
+    "case": "threshold_nan",
+    "expected_accept": false,
+    "accepted": false
+  },
+  {
+    "case": "threshold_epsilon_nan",
+    "expected_accept": false,
+    "accepted": false
+  },
+  {
+    "case": "threshold_epsilon_negative",
+    "expected_accept": false,
+    "accepted": false
+  }
+]

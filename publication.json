@@ -1,0 +1,7 @@
+{
+  "lane": "tensortrain",
+  "reviewed_revision": "8ca6579ee6696c9f94a8ea58327b8f1297009d2a",
+  "paper_sha256": "5b3b00d6fd0c6a0b5b8877422042c2b0a770dc62445b965902a703594f22b777",
+  "source_changes": "local; GitHub repository links currently point to public source",
+  "zenodo_deposit": "none; recommendation only"
+}
